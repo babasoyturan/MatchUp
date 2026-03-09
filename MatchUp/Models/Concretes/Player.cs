@@ -6,14 +6,14 @@ namespace MatchUp.Models.Concretes
 {
     public class Player : IdentityUser<Guid>, IEntityBase
     {
-        public string? ImageUrl { get; set; }
+        public string ImageUrl { get; set; } = default!;
         public string FirstName { get; set; } = default!;
         public string LastName { get; set; } = default!;
-        public string? Biography { get; set; }
-        public short? Height { get; set; }
-        public short? Weight { get; set; }
-        public string? Nationality { get; set; }
-        public DateTime? BirthDate { get; set; }
+        public string Biography { get; set; } = default!;
+        public string Nationality { get; set; } = default!;
+        public short Height { get; set; }
+        public short Weight { get; set; }
+        public DateTime BirthDate { get; set; }
 
         public List<PlayerPosition> PlayablePositions { get; set; } = new();
 

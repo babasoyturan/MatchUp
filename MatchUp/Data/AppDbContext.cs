@@ -49,7 +49,6 @@ namespace MatchUp.Data
         {
             modelBuilder.Entity<Player>(b =>
             {
-                // PlayablePositions -> JSON nvarchar(max)
                 b.Property(x => x.PlayablePositions)
                     .HasConversion(
                         v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
@@ -61,9 +60,29 @@ namespace MatchUp.Data
                         c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                         c => c.ToList()));
 
-                b.Property(x => x.FirstName).HasMaxLength(100);
-                b.Property(x => x.LastName).HasMaxLength(100);
-                b.Property(x => x.Nationality).HasMaxLength(100);
+                b.Property(x => x.ImageUrl)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                b.Property(x => x.FirstName)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                b.Property(x => x.LastName)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                b.Property(x => x.Biography)
+                    .HasMaxLength(1000)
+                    .IsRequired();
+
+                b.Property(x => x.Nationality)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                b.Property(x => x.BirthDate)
+                    .HasColumnType("date")
+                    .IsRequired();
             });
         }
 
@@ -125,6 +144,10 @@ namespace MatchUp.Data
                     .OnDelete(DeleteBehavior.Restrict);
 
                 b.HasIndex(x => new { x.TeamId, x.Role });
+
+                b.HasIndex(x => new { x.TeamId, x.SquadNumber })
+                    .IsUnique()
+                    .HasFilter("[IsActive] = 1");
             });
         }
 
@@ -203,6 +226,9 @@ namespace MatchUp.Data
                     .OnDelete(DeleteBehavior.Restrict);
 
                 b.HasIndex(x => new { x.TeamId, x.InvitedPlayerId });
+
+                b.HasIndex(x => new { x.TeamId, x.ProposedSquadNumber })
+                    .HasFilter($"[Status] = {(int)InviteStatus.Pending}");
             });
         }
 

@@ -11,6 +11,7 @@ namespace MatchUp.Models.Concretes
         public Guid PlayerId { get; set; }
         public Player? Player { get; set; }
 
+        public byte SquadNumber { get; set; }
         public TeamRole Role { get; set; } = TeamRole.Member;
 
         public bool IsActive { get; set; } = true;

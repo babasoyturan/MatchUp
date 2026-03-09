@@ -454,10 +454,12 @@ namespace MatchUp.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Biography")
-                        .HasColumnType("nvarchar(max)");
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
-                    b.Property<DateTime?>("BirthDate")
-                        .HasColumnType("datetime2");
+                    b.Property<DateTime>("BirthDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
@@ -475,11 +477,13 @@ namespace MatchUp.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<short?>("Height")
+                    b.Property<short>("Height")
                         .HasColumnType("smallint");
 
                     b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -493,6 +497,7 @@ namespace MatchUp.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("Nationality")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -527,7 +532,7 @@ namespace MatchUp.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
-                    b.Property<short?>("Weight")
+                    b.Property<short>("Weight")
                         .HasColumnType("smallint");
 
                     b.HasKey("Id");
@@ -660,6 +665,9 @@ namespace MatchUp.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<byte>("ProposedSquadNumber")
+                        .HasColumnType("tinyint");
+
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
@@ -671,6 +679,9 @@ namespace MatchUp.Migrations
                     b.HasIndex("InvitedPlayerId");
 
                     b.HasIndex("TeamId", "InvitedPlayerId");
+
+                    b.HasIndex("TeamId", "ProposedSquadNumber")
+                        .HasFilter("[Status] = 1");
 
                     b.ToTable("TeamInvites");
                 });
@@ -692,11 +703,18 @@ namespace MatchUp.Migrations
                     b.Property<int>("Role")
                         .HasColumnType("int");
 
+                    b.Property<byte>("SquadNumber")
+                        .HasColumnType("tinyint");
+
                     b.HasKey("TeamId", "PlayerId");
 
                     b.HasIndex("PlayerId");
 
                     b.HasIndex("TeamId", "Role");
+
+                    b.HasIndex("TeamId", "SquadNumber")
+                        .IsUnique()
+                        .HasFilter("[IsActive] = 1");
 
                     b.ToTable("TeamMembers");
                 });

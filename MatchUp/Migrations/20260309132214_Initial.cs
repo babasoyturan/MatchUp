@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace MatchUp.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialMigration : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -30,14 +30,14 @@ namespace MatchUp.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ImageUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ImageUrl = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     FirstName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     LastName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Biography = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Height = table.Column<short>(type: "smallint", nullable: true),
-                    Weight = table.Column<short>(type: "smallint", nullable: true),
-                    Nationality = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    BirthDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    Biography = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
+                    Nationality = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Height = table.Column<short>(type: "smallint", nullable: false),
+                    Weight = table.Column<short>(type: "smallint", nullable: false),
+                    BirthDate = table.Column<DateTime>(type: "date", nullable: false),
                     PlayablePositions = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
                     NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
@@ -301,6 +301,7 @@ namespace MatchUp.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TeamId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     InvitedPlayerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ProposedSquadNumber = table.Column<byte>(type: "tinyint", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     ExpiresAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -330,6 +331,7 @@ namespace MatchUp.Migrations
                 {
                     TeamId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     PlayerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SquadNumber = table.Column<byte>(type: "tinyint", nullable: false),
                     Role = table.Column<int>(type: "int", nullable: false),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
                     JoinedAtUtc = table.Column<DateTime>(type: "datetime2", nullable: false)
@@ -709,6 +711,12 @@ namespace MatchUp.Migrations
                 columns: new[] { "TeamId", "InvitedPlayerId" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_TeamInvites_TeamId_ProposedSquadNumber",
+                table: "TeamInvites",
+                columns: new[] { "TeamId", "ProposedSquadNumber" },
+                filter: "[Status] = 1");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TeamMembers_PlayerId",
                 table: "TeamMembers",
                 column: "PlayerId");
@@ -717,6 +725,13 @@ namespace MatchUp.Migrations
                 name: "IX_TeamMembers_TeamId_Role",
                 table: "TeamMembers",
                 columns: new[] { "TeamId", "Role" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeamMembers_TeamId_SquadNumber",
+                table: "TeamMembers",
+                columns: new[] { "TeamId", "SquadNumber" },
+                unique: true,
+                filter: "[IsActive] = 1");
         }
 
         /// <inheritdoc />

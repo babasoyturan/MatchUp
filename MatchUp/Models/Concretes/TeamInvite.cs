@@ -11,6 +11,8 @@ namespace MatchUp.Models.Concretes
         public Guid InvitedPlayerId { get; set; }
         public Player? InvitedPlayer { get; set; }
 
+        public byte ProposedSquadNumber { get; set; }
+
         public InviteStatus Status { get; set; } = InviteStatus.Pending;
         public DateTime ExpiresAtUtc { get; set; }
     }
