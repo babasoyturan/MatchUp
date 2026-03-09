@@ -19,5 +19,7 @@ namespace MatchUp.Models.Concretes
 
         public string? Message { get; set; }
         public GameRequestStatus Status { get; set; } = GameRequestStatus.Pending;
+
+        public DateTime? ExpiresAtUtc { get; set; }
     }
 }
