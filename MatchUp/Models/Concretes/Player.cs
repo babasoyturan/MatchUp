@@ -14,6 +14,7 @@ namespace MatchUp.Models.Concretes
         public short Height { get; set; }
         public short Weight { get; set; }
         public DateTime BirthDate { get; set; }
+        public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
         public List<PlayerPosition> PlayablePositions { get; set; } = new();
 

@@ -1,0 +1,75 @@
+﻿@model MatchUp.ViewModels.Teams.MineTeamsVm
+
+@if (Model.Teams.Count == 0)
+{
+    <div class="panel-box">
+        <div class="info-panel text-center" style="padding:40px 20px;">
+            <h4>No teams found</h4>
+            <p>You do not have any teams in this filter.</p>
+
+            @if (!Model.HasOwnedTeam)
+            {
+                <a asp-controller="Teams"
+                   asp-action="Create"
+                   class="btn btn-primary"
+                   style="margin-top:15px;">
+                    Create Your First Team
+                </a>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="row portfolioContainer">
+        @foreach (var team in Model.Teams)
+        {
+            var teamImage = !string.IsNullOrWhiteSpace(team.ImageUrl)
+            ? team.ImageUrl
+            : Url.Content("~/img/default-team-banner.jpg");
+
+            var teamLogo = !string.IsNullOrWhiteSpace(team.LogoUrl)
+            ? team.LogoUrl
+            : Url.Content("~/img/default-team-logo.png");
+
+            <div class="col-md-6 col-lg-4 col-xl-3">
+                <div class="item-team">
+                    <div class="head-team">
+                        <img src="@teamImage" alt="@team.Name" />
+                        <div class="overlay">
+                            <a asp-controller="Teams"
+                               asp-action="Details"
+                               asp-route-id="@team.Id">+</a>
+                        </div>
+                    </div>
+
+                    <div class="info-team">
+                        <span class="logo-team">
+                            <img src="@teamLogo" alt="@team.Name logo" />
+                        </span>
+
+                        <h4>@team.Name</h4>
+
+                        <span class="location-team">
+                            <i class="fa fa-users" aria-hidden="true"></i>
+                            @team.MemberCount Members
+                        </span>
+
+                        <span class="group-team">
+                            <i class="fa fa-trophy" aria-hidden="true"></i>
+                            @team.WinRatio% Win Ratio
+                        </span>
+                    </div>
+
+                    <a asp-controller="Teams"
+                       asp-action="Details"
+                       asp-route-id="@team.Id"
+                       class="btn">
+                        Team Profile
+                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+}

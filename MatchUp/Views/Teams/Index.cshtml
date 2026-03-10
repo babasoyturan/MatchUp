@@ -1,0 +1,213 @@
+﻿@model TeamsIndexVm
+
+@{
+    ViewData["Title"] = "Teams";
+}
+
+<!-- Section Title -->
+<div class="section-title" style="background: url(img/slide/1.jpg)">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>Teams List</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content-info">
+    <div class="portfolioFilter">
+        <div class="container d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h5 style="display:inline-block; margin-right:15px;">
+                    <i class="fa fa-filter" aria-hidden="true"></i> Sort By:
+                </h5>
+
+                <a href="#"
+                   class="team-sort-link @(Model.Filter.SortBy == TeamSortBy.Newest ? "current" : "")"
+                   data-sort="@((int)TeamSortBy.Newest)">
+                    Newest
+                </a>
+
+                <a href="#"
+                   class="team-sort-link @(Model.Filter.SortBy == TeamSortBy.NameAsc ? "current" : "")"
+                   data-sort="@((int)TeamSortBy.NameAsc)">
+                    A-Z
+                </a>
+
+                <a href="#"
+                   class="team-sort-link @(Model.Filter.SortBy == TeamSortBy.NameDesc ? "current" : "")"
+                   data-sort="@((int)TeamSortBy.NameDesc)">
+                    Z-A
+                </a>
+
+                <a href="#"
+                   class="team-sort-link @(Model.Filter.SortBy == TeamSortBy.WinRatio ? "current" : "")"
+                   data-sort="@((int)TeamSortBy.WinRatio)">
+                    Win Ratio
+                </a>
+            </div>
+
+            @if (Model.ShowCompatibleButton)
+            {
+                <div style="margin-top:10px; margin-bottom:10px;">
+                    <a href="#"
+                       id="toggle-compatible-btn"
+                       class="btn btn-primary"
+                       style="padding:8px 16px;">
+                        @(Model.Filter.CompatibleOnly ? "Show All Teams" : "Show Compatible Opponents")
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="container paddings-mini">
+        <form id="teamsFilterForm">
+            <input type="hidden" name="SortBy" id="SortBy" value="@((int)Model.Filter.SortBy)" />
+            <input type="hidden" name="CompatibleOnly" id="CompatibleOnly" value="@Model.Filter.CompatibleOnly.ToString().ToLower()" />
+            <input type="hidden" name="Page" id="Page" value="@Model.Filter.Page" />
+            <input type="hidden" name="PageSize" id="PageSize" value="@Model.Filter.PageSize" />
+
+            <div class="row">
+                <aside class="col-lg-3">
+                    <div>
+                        <h4>Search Sidebar</h4>
+                        <div class="search">
+                            <div class="input-group">
+                                <input id="Search"
+                                       name="Search"
+                                       class="form-control"
+                                       placeholder="Search by team name..."
+                                       type="text"
+                                       value="@Model.Filter.Search" />
+
+                                <span class="input-group-btn">
+                                    <button class="btn btn-primary"
+                                            type="button"
+                                            id="teams-search-btn">
+                                        Go!
+                                    </button>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-box" style="margin-top:30px;">
+                        <div class="titles no-margin">
+                            <h4>Results</h4>
+                        </div>
+                        <div class="info-panel">
+                            <p style="margin-bottom:10px;">
+                                Total Teams: <strong id="teams-total-count">@Model.TotalCount</strong>
+                            </p>
+
+                            @if (Model.ShowCompatibleButton)
+                            {
+                                <p style="margin-bottom:0;">
+                                    Mode:
+                                    <strong id="teams-mode-label">
+                                        @(Model.Filter.CompatibleOnly ? "Compatible Opponents" : "All Teams")
+                                    </strong>
+                                </p>
+                            }
+                            else
+                            {
+                                <p style="margin-bottom:0;">
+                                    Mode: <strong>All Teams</strong>
+                                </p>
+                            }
+                        </div>
+                    </div>
+                </aside>
+
+                <div class="col-lg-9">
+                    <div id="teams-results">
+                        @await Html.PartialAsync("_TeamsListPartial", Model)
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        $(function () {
+            let searchTimer = null;
+
+            function loadTeams() {
+                const url = '@Url.Action("ListPartial", "Teams")';
+                const data = $('#teamsFilterForm').serialize();
+
+                $.get(url, data, function (html) {
+                    $('#teams-results').html(html);
+                    syncSummary();
+                });
+            }
+
+            function syncSummary() {
+                const totalCount = $('#teams-results').find('[data-total-count]').first().data('total-count');
+                if (typeof totalCount !== 'undefined') {
+                    $('#teams-total-count').text(totalCount);
+                }
+
+                const compatibleOnly = $('#CompatibleOnly').val() === 'true';
+                const modeText = compatibleOnly ? 'Compatible Opponents' : 'All Teams';
+                $('#teams-mode-label').text(modeText);
+
+                $('#toggle-compatible-btn').text(compatibleOnly ? 'Show All Teams' : 'Show Compatible Opponents');
+            }
+
+            $('.team-sort-link').on('click', function (e) {
+                e.preventDefault();
+
+                const sortValue = $(this).data('sort');
+                $('#SortBy').val(sortValue);
+                $('#Page').val(1);
+
+                $('.team-sort-link').removeClass('current');
+                $(this).addClass('current');
+
+                loadTeams();
+            });
+
+            $('#teams-search-btn').on('click', function () {
+                $('#Page').val(1);
+                loadTeams();
+            });
+
+            $('#Search').on('input', function () {
+                clearTimeout(searchTimer);
+
+                searchTimer = setTimeout(function () {
+                    $('#Page').val(1);
+                    loadTeams();
+                }, 400);
+            });
+
+            $('#toggle-compatible-btn').on('click', function (e) {
+                e.preventDefault();
+
+                const current = $('#CompatibleOnly').val() === 'true';
+                $('#CompatibleOnly').val((!current).toString());
+                $('#Page').val(1);
+
+                loadTeams();
+            });
+
+            $(document).on('click', '.teams-page-link', function (e) {
+                e.preventDefault();
+
+                const page = $(this).data('page');
+                $('#Page').val(page);
+
+                loadTeams();
+
+                $('html, body').animate({
+                    scrollTop: $('.portfolioFilter').offset().top
+                }, 300);
+            });
+        });
+    </script>
+}

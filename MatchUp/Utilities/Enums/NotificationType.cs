@@ -19,6 +19,11 @@
         ResultConfirmed = 11,
 
         MatchScheduled = 12,
-        MatchCancelled = 13
+        MatchCancelled = 13,
+
+        TeamInviteDeclined = 14,
+
+        OpenToGameApprovalAccepted = 15,
+        OpenToGameApprovalDeclined = 16
     }
 }

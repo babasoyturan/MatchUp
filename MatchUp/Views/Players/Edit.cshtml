@@ -1,0 +1,133 @@
+﻿@model EditPlayerVm
+
+@{
+    ViewData["Title"] = "Edit Profile";
+}
+
+<section class="content-info">
+    <div class="container paddings">
+        <div class="panel-box block-form">
+            <div class="titles text-center">
+                <h4>EDIT YOUR PROFILE</h4>
+            </div>
+
+            <div class="info-panel">
+                <form asp-controller="Players"
+                      asp-action="Edit"
+                      method="post"
+                      enctype="multipart/form-data">
+
+                    @Html.AntiForgeryToken()
+
+                    <input asp-for="CurrentImageUrl" type="hidden" />
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger margin-bottom-10"></div>
+
+                    <div class="form-group">
+                        <label asp-for="FirstName" class="control-label col-sm-2">First Name</label>
+                        <div class="col-sm-10">
+                            <input asp-for="FirstName" class="form-control" />
+                            <span asp-validation-for="FirstName" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="LastName" class="control-label col-sm-2">Last Name</label>
+                        <div class="col-sm-10">
+                            <input asp-for="LastName" class="form-control" />
+                            <span asp-validation-for="LastName" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="Biography" class="control-label col-sm-2">Biography</label>
+                        <div class="col-sm-10">
+                            <textarea asp-for="Biography" class="form-control" rows="4"></textarea>
+                            <span asp-validation-for="Biography" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="Nationality" class="control-label col-sm-2">Nationality</label>
+                        <div class="col-sm-10">
+                            <select asp-for="Nationality" asp-items="Model.NationalityOptions" class="form-control">
+                                <option value="">Select nationality</option>
+                            </select>
+                            <span asp-validation-for="Nationality" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="Height" class="control-label col-sm-2">Height (cm)</label>
+                        <div class="col-sm-10">
+                            <input asp-for="Height" class="form-control" />
+                            <span asp-validation-for="Height" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="Weight" class="control-label col-sm-2">Weight (kg)</label>
+                        <div class="col-sm-10">
+                            <input asp-for="Weight" class="form-control" />
+                            <span asp-validation-for="Weight" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="BirthDate" class="control-label col-sm-2">Birth Date</label>
+                        <div class="col-sm-10">
+                            <input asp-for="BirthDate" type="date" class="form-control" />
+                            <span asp-validation-for="BirthDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="control-label col-sm-2">Current Image</label>
+                        <div class="col-sm-10">
+                            <img src="@Model.CurrentImageUrl" alt="Current profile image" style="max-width:150px; border-radius:8px;" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="ImageFile" class="control-label col-sm-2">New Image</label>
+                        <div class="col-sm-10">
+                            <input asp-for="ImageFile" type="file" class="form-control" />
+                            <span asp-validation-for="ImageFile" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="control-label col-sm-2">Positions</label>
+                        <div class="col-sm-10">
+                            <div class="row">
+                                @foreach (var position in Model.PositionOptions)
+                                {
+                                    <div class="col-sm-6" style="margin-bottom:8px;">
+                                        <label style="font-weight:normal;">
+                                            <input type="checkbox"
+                                                   name="PlayablePositions"
+                                                   value="@position.Value"
+                                                   @(Model.PlayablePositions.Any(x => ((int)x).ToString() == position.Value) ? "checked" : null) />
+                                            @position.Text
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                            <span asp-validation-for="PlayablePositions" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="col-sm-offset-2 col-sm-10">
+                            <button type="submit" class="bnt btn-iw">Save Changes</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

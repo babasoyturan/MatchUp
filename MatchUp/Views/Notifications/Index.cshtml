@@ -1,0 +1,202 @@
+﻿@model NotificationsIndexVm
+
+@{
+    ViewData["Title"] = "Notifications";
+}
+
+<div class="section-title" style="background:url('/img/slide/1.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>Notifications</h1>
+            </div>
+
+            <div class="col-md-4">
+                <div class="breadcrumbs">
+                    <ul>
+                        <li><a asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li>Notifications</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content-info">
+    <div class="container paddings-mini">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="panel-box">
+                    <div class="titles">
+                        <h4>
+                            Notifications
+                            <span style="margin-left:10px; font-size:14px;">
+                                Unread: @Model.UnreadCount
+                            </span>
+                        </h4>
+                    </div>
+
+                    <div class="info-panel">
+                        @if (!Model.Notifications.Any())
+                        {
+                            <div class="text-center" style="padding:40px 20px;">
+                                <h4>No notifications found</h4>
+                                <p>You do not have any notifications yet.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var notification in Model.Notifications)
+                            {
+                                <div class="panel-box" style="margin-bottom:20px;">
+                                    <div class="titles no-margin">
+                                        <h4>
+                                            @notification.Title
+                                            <span style="float:right; font-size:13px;">
+                                                @(notification.IsRead ? "Read" : "Unread")
+                                            </span>
+                                        </h4>
+                                    </div>
+
+                                    <div class="info-panel">
+                                        <p>
+                                            <strong>Type:</strong> @notification.TypeText
+                                        </p>
+
+                                        <p>
+                                            <strong>Created:</strong> @notification.CreatedAtUtc.ToString("dd MMM yyyy HH:mm")
+                                        </p>
+
+                                        @if (!string.IsNullOrWhiteSpace(notification.Message))
+                                        {
+                                            <p>@notification.Message</p>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(notification.TeamName))
+                                        {
+                                            <p>
+                                                <strong>Team:</strong> @notification.TeamName
+                                            </p>
+                                        }
+
+                                        @if (notification.ProposedSquadNumber.HasValue)
+                                        {
+                                            <p>
+                                                <strong>Proposed Squad Number:</strong> @notification.ProposedSquadNumber
+                                            </p>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(notification.OpenToGameConfigStatus))
+                                        {
+                                            <p>
+                                                <strong>Open To Game Status:</strong> @notification.OpenToGameConfigStatus
+                                            </p>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(notification.TeamInviteStatus))
+                                        {
+                                            <p>
+                                                <strong>Invite Status:</strong> @notification.TeamInviteStatus
+                                            </p>
+                                        }
+
+                                        @if (notification.InviteExpiresAtUtc.HasValue)
+                                        {
+                                            <p>
+                                                <strong>Expires At:</strong> @notification.InviteExpiresAtUtc.Value.ToString("dd MMM yyyy HH:mm")
+                                            </p>
+                                        }
+
+                                        <div style="margin-top:15px;">
+                                            @if (notification.CanAccept && notification.TeamInviteId.HasValue)
+                                            {
+                                                <form asp-controller="Notifications"
+                                                      asp-action="AcceptTeamInvite"
+                                                      method="post"
+                                                      style="display:inline-block; margin-right:10px;">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="inviteId" value="@notification.TeamInviteId.Value" />
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-success">
+                                                        Accept
+                                                    </button>
+                                                </form>
+                                            }
+
+                                            @if (notification.CanDecline && notification.TeamInviteId.HasValue)
+                                            {
+                                                <form asp-controller="Notifications"
+                                                      asp-action="DeclineTeamInvite"
+                                                      method="post"
+                                                      style="display:inline-block; margin-right:10px;">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="inviteId" value="@notification.TeamInviteId.Value" />
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-danger">
+                                                        Decline
+                                                    </button>
+                                                </form>
+                                            }
+
+                                            @if (notification.CanApproveOpenToGame && notification.OpenToGameConfigId.HasValue)
+                                            {
+                                                <form asp-controller="Notifications"
+                                                      asp-action="ApproveOpenToGame"
+                                                      method="post"
+                                                      style="display:inline-block; margin-right:10px;">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="configId" value="@notification.OpenToGameConfigId.Value" />
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-success">
+                                                        Approve
+                                                    </button>
+                                                </form>
+                                            }
+
+                                            @if (notification.CanDeclineOpenToGame && notification.OpenToGameConfigId.HasValue)
+                                            {
+                                                <form asp-controller="Notifications"
+                                                      asp-action="DeclineOpenToGame"
+                                                      method="post"
+                                                      style="display:inline-block; margin-right:10px;">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="configId" value="@notification.OpenToGameConfigId.Value" />
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-danger">
+                                                        Decline
+                                                    </button>
+                                                </form>
+                                            }
+
+                                            @if (!notification.IsRead && !notification.CanAccept && !notification.CanDecline)
+                                            {
+                                                <form asp-controller="Notifications"
+                                                      asp-action="MarkAsRead"
+                                                      method="post"
+                                                      style="display:inline-block;">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-primary">
+                                                        Mark as Read
+                                                    </button>
+                                                </form>
+                                            }
+
+                                            @if (notification.IsExpired)
+                                            {
+                                                <span class="text-danger" style="margin-left:10px;">
+                                                    This invite has expired.
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

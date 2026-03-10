@@ -83,6 +83,11 @@ namespace MatchUp.Data
                 b.Property(x => x.BirthDate)
                     .HasColumnType("date")
                     .IsRequired();
+
+                b.Property(x => x.CreatedAtUtc)
+                    .HasColumnType("date")
+                    .IsRequired();
+
             });
         }
 

@@ -1,0 +1,174 @@
+﻿@model ManageOpenToGameVm
+
+@{
+    ViewData["Title"] = "Manage Open To Game";
+}
+
+<div class="section-title" style="background:url('/img/slide/1.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>Manage Open To Game - @Model.TeamName</h1>
+            </div>
+
+            <div class="col-md-4">
+                <div class="breadcrumbs">
+                    <ul>
+                        <li><a asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li><a asp-controller="Teams" asp-action="Details" asp-route-id="@Model.TeamId">@Model.TeamName</a></li>
+                        <li>Open To Game</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content-info">
+    <div class="container paddings-mini">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="panel-box">
+                    <div class="titles">
+                        <h4>Configuration</h4>
+                    </div>
+
+                    <div class="info-panel">
+                        <form asp-controller="Teams" asp-action="ManageOpenToGame" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" asp-for="TeamId" />
+
+                            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                            <div class="form-group">
+                                <label><strong>Current Status:</strong></label>
+                                <p>@Model.StatusText</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Currently Enabled:</strong></label>
+                                <p>@(Model.IsCurrentlyOpenToGame ? "Yes" : "No")</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Formats</strong></label>
+                                <div>
+                                    @foreach (var format in Enum.GetValues<GameFormat>())
+                                    {
+                                        <label style="display:block; margin-bottom:6px;">
+                                            <input type="checkbox"
+                                                   name="SelectedFormats"
+                                                   value="@format"
+                                                   @(Model.SelectedFormats.Contains(format) ? "checked" : null) />
+                                            @format
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label asp-for="CityName"><strong>City</strong></label>
+                                <input asp-for="CityName" class="form-control" />
+                                <span asp-validation-for="CityName" class="text-danger"></span>
+                            </div>
+
+                            <div class="form-group">
+                                <label asp-for="RegionName"><strong>Region</strong></label>
+                                <input asp-for="RegionName" class="form-control" />
+                                <span asp-validation-for="RegionName" class="text-danger"></span>
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Weekly Time Windows</strong></label>
+
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Day</th>
+                                            <th>Active</th>
+                                            <th>Start</th>
+                                            <th>End</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (int i = 0; i < Model.DayWindows.Count; i++)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    @Model.DayWindows[i].Day
+                                                    <input type="hidden" asp-for="DayWindows[i].Day" />
+                                                </td>
+                                                <td>
+                                                    <input asp-for="DayWindows[i].IsActive" />
+                                                </td>
+                                                <td>
+                                                    <input asp-for="DayWindows[i].StartTime" type="time" class="form-control" />
+                                                </td>
+                                                <td>
+                                                    <input asp-for="DayWindows[i].EndTime" type="time" class="form-control" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-primary">
+                                    Save / Submit For Approval
+                                </button>
+                            </div>
+                        </form>
+
+                        @if (Model.IsCurrentlyOpenToGame)
+                        {
+                            <form asp-controller="Teams" asp-action="DisableOpenToGame" method="post" style="margin-top:15px;">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="teamId" value="@Model.TeamId" />
+                                <button type="submit" class="btn btn-danger">Disable Open To Game</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="panel-box">
+                    <div class="titles">
+                        <h4>Approval Status</h4>
+                    </div>
+
+                    <div class="info-panel">
+                        @if (!Model.ApprovalStatuses.Any())
+                        {
+                            <p>No approval records yet.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-panel">
+                                @foreach (var approval in Model.ApprovalStatuses)
+                                {
+                                    <li>
+                                        <p>
+                                            @approval.FullName
+                                            <span>@approval.StatusText</span>
+                                        </p>
+
+                                        @if (approval.RespondedAtUtc.HasValue)
+                                        {
+                                            <small>@approval.RespondedAtUtc.Value.ToString("dd MMM yyyy HH:mm")</small>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

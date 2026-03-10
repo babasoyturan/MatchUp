@@ -1,0 +1,726 @@
+﻿@model TeamDetailsVm
+
+@{
+    ViewData["Title"] = Model.Name;
+
+    var teamLogo = !string.IsNullOrWhiteSpace(Model.LogoUrl)
+        ? Model.LogoUrl
+        : Url.Content("~/img/default-team-logo.png");
+
+    var teamImage = !string.IsNullOrWhiteSpace(Model.ImageUrl)
+        ? Model.ImageUrl
+        : Url.Content("~/img/default-team-banner.jpg");
+}
+
+<div class="section-title-team">
+    <div class="container">
+        <div class="row">
+            <div class="col-xl-7">
+                <div class="row">
+                    <div class="col-md-3">
+                        <img src="@teamLogo" alt="@Model.Name">
+                    </div>
+
+                    <div class="col-md-9">
+                        <h1>@Model.Name</h1>
+
+                        <ul class="general-info">
+                            <li>
+                                <h6>
+                                    <strong>Created:</strong>
+                                    @Model.CreatedAtUtc.ToString("dd MMM yyyy")
+                                </h6>
+                            </li>
+
+                            <li>
+                                <h6>
+                                    <strong>Owner:</strong>
+                                    @if (Model.OwnerPlayerId.HasValue)
+                                    {
+                                        <a asp-controller="Players"
+                                           asp-action="Details"
+                                           asp-route-id="@Model.OwnerPlayerId.Value">
+                                            @Model.OwnerFullName
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        @Model.OwnerFullName
+                                    }
+                                </h6>
+                            </li>
+
+                            <li>
+                                <h6>
+                                    <strong>Members:</strong>
+                                    @Model.ActiveMemberCount active / @Model.MemberCount total
+                                </h6>
+                            </li>
+
+                            <li>
+                                <h6>
+                                    <strong>Open To Game:</strong>
+                                    @(Model.IsOpenToGame ? "Enabled" : "Disabled")
+                                </h6>
+                            </li>
+
+                            <li>
+                                <h6>
+                                    <strong>Status:</strong>
+                                    @Model.OpenToGame.Status
+                                </h6>
+                            </li>
+
+                            @if (Model.IsOwnerView)
+                            {
+                                <li>
+                                    <h6>
+                                        <strong>Your Access:</strong> Owner
+                                    </h6>
+                                </li>
+                            }
+                            else if (Model.IsMemberView)
+                            {
+                                <li>
+                                    <h6>
+                                        <strong>Your Access:</strong> Member
+                                    </h6>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-image-team" style="background:url('@teamImage');"></div>
+</div>
+
+<section class="content-info">
+    <div class="single-team-tabs">
+        <div class="container">
+            <div class="row">
+                <div class="col-xl-12 col-md-12">
+                    <ul class="nav nav-tabs" id="myTab">
+                        <li class="active"><a href="#overview" data-toggle="tab">Overview</a></li>
+                        <li><a href="#squad" data-toggle="tab">Squad</a></li>
+                        <li><a href="#fixtures" data-toggle="tab">Fixtures</a></li>
+                        <li><a href="#results" data-toggle="tab">Results</a></li>
+                        <li><a href="#stats" data-toggle="tab">Stats</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-9 padding-top-mini">
+                    <div class="tab-content">
+                        <div class="tab-pane active" id="overview">
+                            <div class="panel-box padding-b">
+                                <div class="titles">
+                                    <h4>@Model.Name overview</h4>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-lg-12 col-xl-4">
+                                        <img src="@teamImage" alt="@Model.Name">
+                                    </div>
+
+                                    <div class="col-lg-12 col-xl-8">
+                                        @if (!string.IsNullOrWhiteSpace(Model.Description))
+                                        {
+                                            <p>@Model.Description</p>
+                                        }
+                                        else
+                                        {
+                                            <p>No description has been added for this team yet.</p>
+                                        }
+
+                                        <div style="margin-top:20px;">
+                                            <p>
+                                                <strong>Owner:</strong>
+                                                @if (Model.OwnerPlayerId.HasValue)
+                                                {
+                                                    <a asp-controller="Players"
+                                                       asp-action="Details"
+                                                       asp-route-id="@Model.OwnerPlayerId.Value">
+                                                        @Model.OwnerFullName
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    @Model.OwnerFullName
+                                                }
+                                            </p>
+
+                                            <p>
+                                                <strong>Members:</strong>
+                                                @Model.ActiveMemberCount active / @Model.MemberCount total
+                                            </p>
+
+                                            <p>
+                                                <strong>Open To Game:</strong>
+                                                @(Model.IsOpenToGame ? "Enabled" : "Disabled")
+                                            </p>
+
+                                            <p>
+                                                <strong>Configuration Status:</strong>
+                                                @Model.OpenToGame.Status
+                                            </p>
+
+                                            @if (Model.OpenToGame.ActivatedAtUtc.HasValue)
+                                            {
+                                                <p>
+                                                    <strong>Activated At:</strong>
+                                                    @Model.OpenToGame.ActivatedAtUtc.Value.ToString("dd MMM yyyy HH:mm")
+                                                </p>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-lg-6 col-xl-4">
+                                    <div class="panel-box">
+                                        <div class="titles no-margin">
+                                            <h4><i class="fa fa-futbol-o"></i> Formats</h4>
+                                        </div>
+                                        <div class="info-panel">
+                                            @if (Model.OpenToGame.Formats.Any())
+                                            {
+                                                <ul class="list">
+                                                    @foreach (var format in Model.OpenToGame.Formats)
+                                                    {
+                                                        <li><i class="fa fa-check"></i>@format</li>
+                                                    }
+                                                </ul>
+                                            }
+                                            else
+                                            {
+                                                <p>No formats configured.</p>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-6 col-xl-4">
+                                    <div class="panel-box">
+                                        <div class="titles no-margin">
+                                            <h4><i class="fa fa-map-marker"></i> Areas</h4>
+                                        </div>
+                                        <div class="info-panel">
+                                            @if (Model.OpenToGame.Areas.Any())
+                                            {
+                                                <ul class="list">
+                                                    @foreach (var area in Model.OpenToGame.Areas)
+                                                    {
+                                                        <li><i class="fa fa-check"></i>@area</li>
+                                                    }
+                                                </ul>
+                                            }
+                                            else
+                                            {
+                                                <p>No areas configured.</p>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-12 col-xl-4">
+                                    <div class="panel-box">
+                                        <div class="titles no-margin">
+                                            <h4><i class="fa fa-clock-o"></i> Time Windows</h4>
+                                        </div>
+                                        <div class="info-panel">
+                                            @if (Model.OpenToGame.TimeWindows.Any())
+                                            {
+                                                <ul class="list">
+                                                    @foreach (var timeWindow in Model.OpenToGame.TimeWindows)
+                                                    {
+                                                        <li><i class="fa fa-check"></i>@timeWindow</li>
+                                                    }
+                                                </ul>
+                                            }
+                                            else
+                                            {
+                                                <p>No time windows configured.</p>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="squad">
+                            <div class="row">
+                                @if (!Model.Squad.Any())
+                                {
+                                    <div class="col-lg-12">
+                                        <div class="panel-box">
+                                            <div class="info-panel text-center" style="padding:40px 20px;">
+                                                <h4>No squad members found</h4>
+                                                <p>This team does not have active squad members yet.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @foreach (var player in Model.Squad)
+                                    {
+                                        var playerImage = !string.IsNullOrWhiteSpace(player.ImageUrl)
+                                        ? player.ImageUrl
+                                        : Url.Content("~/img/default-player.jpg");
+
+                                        <div class="col-xl-4 col-lg-6 col-md-6">
+                                            <div class="item-player">
+                                                <div class="head-player">
+                                                    <img src="@playerImage" alt="@player.FullName">
+                                                    <div class="overlay">
+                                                        <a asp-controller="Players"
+                                                           asp-action="Details"
+                                                           asp-route-id="@player.PlayerId">
+                                                            +
+                                                        </a>
+                                                    </div>
+                                                </div>
+
+                                                <div class="info-player">
+                                                    <span class="number-player">
+                                                        @player.SquadNumber
+                                                    </span>
+                                                    <h4>
+                                                        @player.FullName
+                                                        <span>@player.PrimaryPosition</span>
+                                                    </h4>
+
+                                                    <ul>
+                                                        <li>
+                                                            <strong>NATIONALITY</strong>
+                                                            <span>@player.Nationality</span>
+                                                        </li>
+                                                        <li>
+                                                            <strong>ROLE:</strong>
+                                                            <span>@player.Role</span>
+                                                        </li>
+                                                        <li>
+                                                            <strong>AGE:</strong>
+                                                            <span>@player.Age</span>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+
+                                                <a asp-controller="Players"
+                                                   asp-action="Details"
+                                                   asp-route-id="@player.PlayerId"
+                                                   class="btn">
+                                                    View Player
+                                                    <i class="fa fa-angle-right" aria-hidden="true"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="fixtures">
+                            <div class="col-lg-12">
+                                @if (!Model.Fixtures.Any())
+                                {
+                                    <div class="panel-box">
+                                        <div class="info-panel text-center" style="padding:40px 20px;">
+                                            <h4>No fixtures found</h4>
+                                            <p>This team does not have scheduled matches yet.</p>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <table class="table-striped table-responsive table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Team A</th>
+                                                <th class="text-center">VS</th>
+                                                <th>Team B</th>
+                                                <th>Details</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var match in Model.Fixtures)
+                                            {
+                                                var opponentLogo = !string.IsNullOrWhiteSpace(match.OpponentTeamLogoUrl)
+                                                ? match.OpponentTeamLogoUrl
+                                                : Url.Content("~/img/default-team-logo.png");
+
+                                                <tr>
+                                                    <td>
+                                                        @if (match.IsHome)
+                                                        {
+                                                            <img src="@teamLogo" alt="@Model.Name" style="width:24px; height:24px; object-fit:cover;">
+                                                            <strong>@Model.Name</strong>
+
+                                                            <br>
+                                                            <small class="meta-text">Home</small>
+                                                        }
+                                                        else
+                                                        {
+                                                            <img src="@opponentLogo" alt="@match.OpponentTeamName" style="width:24px; height:24px; object-fit:cover;">
+                                                            <strong>
+                                                                <a asp-controller="Teams"
+                                                                   asp-action="Details"
+                                                                   asp-route-id="@match.OpponentTeamId">
+                                                                    @match.OpponentTeamName
+                                                                </a>
+                                                            </strong>
+
+                                                            <br>
+                                                            <small class="meta-text">Away</small>
+                                                        }
+                                                    </td>
+
+                                                    <td class="text-center">Vs</td>
+
+                                                    <td>
+                                                        @if (match.IsHome)
+                                                        {
+                                                            <img src="@opponentLogo" alt="@match.OpponentTeamName" style="width:24px; height:24px; object-fit:cover;">
+                                                            <strong>
+                                                                <a asp-controller="Teams"
+                                                                   asp-action="Details"
+                                                                   asp-route-id="@match.OpponentTeamId">
+                                                                    @match.OpponentTeamName
+                                                                </a>
+                                                            </strong>
+
+                                                            <br>
+                                                            <small class="meta-text">Away</small>
+                                                        }
+                                                        else
+                                                        {
+                                                            <img src="@teamLogo" alt="@Model.Name" style="width:24px; height:24px; object-fit:cover;">
+                                                            <strong>@Model.Name</strong>
+
+                                                            <br>
+                                                            <small class="meta-text">Home</small>
+                                                        }
+                                                    </td>
+
+                                                    <td>
+                                                        @match.StartAtUtc.ToString("dd MMM yyyy, HH:mm")<br>
+                                                        <small class="meta-text">@match.VenueText</small><br>
+                                                        <small class="meta-text">@match.Format</small>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="results">
+                            <div class="col-lg-12">
+                                @if (!Model.Results.Any())
+                                {
+                                    <div class="panel-box">
+                                        <div class="info-panel text-center" style="padding:40px 20px;">
+                                            <h4>No results found</h4>
+                                            <p>This team does not have completed matches yet.</p>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="recent-results results-page">
+                                        <div class="info-results">
+                                            <ul>
+                                                @foreach (var match in Model.Results)
+                                                {
+                                                    var opponentLogo = !string.IsNullOrWhiteSpace(match.OpponentTeamLogoUrl)
+                                                    ? match.OpponentTeamLogoUrl
+                                                    : Url.Content("~/img/default-team-logo.png");
+
+                                                    <li>
+                                                        <span class="head">
+                                                            @(match.IsHome ? $"{Model.Name} vs {match.OpponentTeamName}" : $"{match.OpponentTeamName} vs {Model.Name}")
+                                                            <span class="date">@match.StartAtUtc.ToString("dd MMM yyyy")</span>
+                                                        </span>
+
+                                                        <div class="goals-result">
+                                                            @if (match.IsHome)
+                                                            {
+                                                                <a asp-controller="Teams"
+                                                                   asp-action="Details"
+                                                                   asp-route-id="@Model.Id">
+                                                                    <img src="@teamLogo" alt="@Model.Name">
+                                                                    @Model.Name
+                                                                </a>
+
+                                                                <span class="goals">
+                                                                    <b>@match.TeamScore</b> - <b>@match.OpponentScore</b>
+                                                                </span>
+
+                                                                <a asp-controller="Teams"
+                                                                   asp-action="Details"
+                                                                   asp-route-id="@match.OpponentTeamId">
+                                                                    <img src="@opponentLogo" alt="@match.OpponentTeamName">
+                                                                    @match.OpponentTeamName
+                                                                </a>
+                                                            }
+                                                            else
+                                                            {
+                                                                <a asp-controller="Teams"
+                                                                   asp-action="Details"
+                                                                   asp-route-id="@match.OpponentTeamId">
+                                                                    <img src="@opponentLogo" alt="@match.OpponentTeamName">
+                                                                    @match.OpponentTeamName
+                                                                </a>
+
+                                                                <span class="goals">
+                                                                    <b>@match.OpponentScore</b> - <b>@match.TeamScore</b>
+                                                                </span>
+
+                                                                <a asp-controller="Teams"
+                                                                   asp-action="Details"
+                                                                   asp-route-id="@Model.Id">
+                                                                    <img src="@teamLogo" alt="@Model.Name">
+                                                                    @Model.Name
+                                                                </a>
+                                                            }
+                                                        </div>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="stats">
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="stats-info">
+                                        <ul>
+                                            <li>
+                                                Matches Played
+                                                <h3>@Model.Stats.MatchesPlayed</h3>
+                                            </li>
+
+                                            <li>
+                                                Wins
+                                                <h3>@Model.Stats.Wins</h3>
+                                            </li>
+
+                                            <li>
+                                                Draws
+                                                <h3>@Model.Stats.Draws</h3>
+                                            </li>
+
+                                            <li>
+                                                Losses
+                                                <h3>@Model.Stats.Losses</h3>
+                                            </li>
+
+                                            <li>
+                                                Goals Scored
+                                                <h3>@Model.Stats.GoalsScored</h3>
+                                            </li>
+
+                                            <li>
+                                                Goals Conceded
+                                                <h3>@Model.Stats.GoalsConceded</h3>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-lg-6 col-xl-4">
+                                    <div class="panel-box">
+                                        <div class="titles no-margin">
+                                            <h4><i class="fa fa-calendar"></i> Results Summary</h4>
+                                        </div>
+                                        <ul class="list-panel">
+                                            <li><p>Matches Played <span>@Model.Stats.MatchesPlayed</span></p></li>
+                                            <li><p>Completed Matches <span>@Model.Stats.CompletedMatchesCount</span></p></li>
+                                            <li><p>Scheduled Matches <span>@Model.Stats.ScheduledMatchesCount</span></p></li>
+                                            <li><p>Win Ratio <span>@Model.Stats.WinRatio %</span></p></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-6 col-xl-4">
+                                    <div class="panel-box">
+                                        <div class="titles no-margin">
+                                            <h4><i class="fa fa-calendar"></i> Goal Summary</h4>
+                                        </div>
+                                        <ul class="list-panel">
+                                            <li><p>Goals Scored <span>@Model.Stats.GoalsScored</span></p></li>
+                                            <li><p>Goals Conceded <span>@Model.Stats.GoalsConceded</span></p></li>
+                                            <li><p>Goal Difference <span>@Model.Stats.GoalDifference</span></p></li>
+                                            <li><p>Clean Sheets <span>@Model.Stats.CleanSheets</span></p></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-6 col-xl-4">
+                                    <div class="panel-box">
+                                        <div class="titles no-margin">
+                                            <h4><i class="fa fa-calendar"></i> Match Timeline</h4>
+                                        </div>
+                                        <ul class="list-panel">
+                                            <li>
+                                                <p>
+                                                    Next Match
+                                                    <span>
+                                                        @(Model.Stats.NextMatchAtUtc.HasValue
+                                                                                                                ? Model.Stats.NextMatchAtUtc.Value.ToString("dd MMM yyyy HH:mm")
+                                                                                                                : "No scheduled match")
+                                                    </span>
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p>
+                                                    Last Match
+                                                    <span>
+                                                        @(Model.Stats.LastMatchAtUtc.HasValue
+                                                                                                                ? Model.Stats.LastMatchAtUtc.Value.ToString("dd MMM yyyy HH:mm")
+                                                                                                                : "No completed match")
+                                                    </span>
+                                                </p>
+                                            </li>
+                                            <li><p>Wins <span>@Model.Stats.Wins</span></p></li>
+                                            <li><p>Losses <span>@Model.Stats.Losses</span></p></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-3 padding-top-mini">
+                    <div class="panel-box">
+                        <div class="titles">
+                            <h4><i class="fa fa-calendar"></i>Upcoming Matches</h4>
+                        </div>
+
+                        @if (!Model.UpcomingMatchesPreview.Any())
+                        {
+                            <div class="info-panel">
+                                <p>No upcoming matches.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <ul class="list-diary">
+                                @foreach (var match in Model.UpcomingMatchesPreview)
+                                {
+                                    var opponentLogo = !string.IsNullOrWhiteSpace(match.OpponentTeamLogoUrl)
+                                    ? match.OpponentTeamLogoUrl
+                                    : Url.Content("~/img/default-team-logo.png");
+
+                                    <li>
+                                        <h6>
+                                            @match.Format
+                                            <span>@match.StartAtUtc.ToString("dd MMM yyyy - HH:mm")</span>
+                                        </h6>
+
+                                        <ul class="club-logo">
+                                            <li>
+                                                @if (match.IsHome)
+                                                {
+                                                    <img src="@teamLogo" alt="@Model.Name">
+                                                    <span>@Model.Name</span>
+                                                }
+                                                else
+                                                {
+                                                    <img src="@opponentLogo" alt="@match.OpponentTeamName">
+                                                    <span>@match.OpponentTeamName</span>
+                                                }
+                                            </li>
+
+                                            <li>
+                                                @if (match.IsHome)
+                                                {
+                                                    <img src="@opponentLogo" alt="@match.OpponentTeamName">
+                                                    <span>@match.OpponentTeamName</span>
+                                                }
+                                                else
+                                                {
+                                                    <img src="@teamLogo" alt="@Model.Name">
+                                                    <span>@Model.Name</span>
+                                                }
+                                            </li>
+                                        </ul>
+
+                                        <div style="margin-top:8px;">
+                                            <small class="meta-text">@match.VenueText</small>
+                                        </div>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+
+                    <div class="panel-box">
+                        <div class="titles no-margin">
+                            <h4>Open To Game</h4>
+                        </div>
+
+                        <div class="info-panel">
+                            <p>
+                                <strong>Status:</strong>
+                                @Model.OpenToGame.Status
+                            </p>
+
+                            <p>
+                                <strong>Enabled:</strong>
+                                @(Model.OpenToGame.IsEnabled ? "Yes" : "No")
+                            </p>
+
+                            @if (Model.OpenToGame.Formats.Any())
+                            {
+                                <p><strong>Formats:</strong></p>
+                                <ul class="list">
+                                    @foreach (var format in Model.OpenToGame.Formats)
+                                    {
+                                        <li><i class="fa fa-check"></i>@format</li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                        @if (Model.IsOwnerView)
+                        {
+                            <div style="margin-top:15px;">
+                                <a asp-controller="Teams"
+                                   asp-action="ManageOpenToGame"
+                                   asp-route-id="@Model.Id"
+                                   class="btn">
+                                    Manage Open To Game
+                                    <i class="fa fa-angle-right" aria-hidden="true"></i>
+                                </a>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="panel-box">
+                        <div class="titles no-margin">
+                            <h4>Team Summary</h4>
+                        </div>
+
+                        <div class="info-panel">
+                            <p><strong>Name:</strong> @Model.Name</p>
+                            <p><strong>Owner:</strong> @Model.OwnerFullName</p>
+                            <p><strong>Members:</strong> @Model.ActiveMemberCount</p>
+                            <p><strong>Win Ratio:</strong> @Model.Stats.WinRatio %</p>
+                            <p><strong>Goal Difference:</strong> @Model.Stats.GoalDifference</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

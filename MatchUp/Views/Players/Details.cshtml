@@ -1,0 +1,349 @@
+﻿@model MatchUp.ViewModels.Players.PlayerDetailsVm
+
+@{
+    ViewData["Title"] = Model.FullName;
+    var playerImage = !string.IsNullOrWhiteSpace(Model.ImageUrl)
+        ? Model.ImageUrl
+        : Url.Content("~/img/default-player.jpg");
+}
+
+<div class="section-title single-player" style="background:url('/img/slide/3.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>@Model.FullName</h1>
+            </div>
+
+            <div class="col-md-4">
+                <div class="breadcrumbs">
+                    <ul>
+                        <li><a asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li><a asp-controller="Players" asp-action="Index">Players</a></li>
+                        <li>@Model.FullName</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content-info">
+    <div class="single-player-tabs">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-4 col-xl-3">
+                    <div class="item-player single-player">
+                        <div class="head-player">
+                            <img src="@playerImage" alt="@Model.FullName">
+                        </div>
+
+                        <div class="info-player">
+                            <h4>
+                                @Model.FullName
+                                <span>@Model.PrimaryPosition</span>
+                            </h4>
+
+                            <ul>
+                                <li>
+                                    <strong>NATIONALITY:</strong>
+                                    <span>@Model.Nationality</span>
+                                </li>
+                                <li>
+                                    <strong>AGE:</strong>
+                                    <span>@Model.Age</span>
+                                </li>
+                                <li>
+                                    <strong>STATUS:</strong>
+                                    <span>@(Model.IsFreeAgent ? "Free Agent" : "Active Player")</span>
+                                </li>
+                                <li>
+                                    <strong>ACTIVE TEAMS:</strong>
+                                    <span>@Model.ActiveTeamsCount</span>
+                                </li>
+                                <li>
+                                    <strong>OWNER TEAMS:</strong>
+                                    <span>@Model.OwnerTeamsCount</span>
+                                </li>
+                            </ul>
+
+                            @if (Model.IsOwnProfile)
+                            {
+                                <div style="margin-top:15px;">
+                                    <a asp-controller="Players"
+                                       asp-action="Edit"
+                                       class="btn"
+                                       style="display:block; text-align:center;">
+                                        Edit Profile
+                                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                                    </a>
+                                </div>
+                            }
+                            else if (Model.InviteState.CanInvite)
+                            {
+                                <div style="margin-top:15px;">
+                                    <button type="button"
+                                            class="btn"
+                                            style="display:block; width:100%; text-align:center;"
+                                            data-toggle="modal"
+                                            data-target="#inviteToTeamModal">
+                                        Invite To Team
+                                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(Model.InviteState.Message))
+                            {
+                                <div style="margin-top:15px;">
+                                    <div class="alert alert-info" style="margin-bottom:0;">
+                                        @Model.InviteState.Message
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="panel-box">
+                        <div class="titles no-margin">
+                            <h4><i class="fa fa-user"></i>Personal Info</h4>
+                        </div>
+
+                        <ul class="list-panel">
+                            <li><p>Weight <span>@Model.Weight Kg</span></p></li>
+                            <li><p>Height <span>@Model.Height cm</span></p></li>
+                            <li><p>Nationality <span>@Model.Nationality</span></p></li>
+                            <li><p>Date of Birth <span>@Model.BirthDate.ToString("dd MMMM yyyy")</span></p></li>
+                            <li><p>Age <span>@Model.Age</span></p></li>
+
+                            @if (Model.IsOwnProfile && !string.IsNullOrWhiteSpace(Model.Email))
+                            {
+                                <li><p>Email <span>@Model.Email</span></p></li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-lg-8 col-xl-9">
+                    <ul class="nav nav-tabs" id="myTab">
+                        <li class="active"><a href="#overview" data-toggle="tab">Overview</a></li>
+                        <li><a href="#teams" data-toggle="tab">TEAMS</a></li>
+                        <li><a href="#profile" data-toggle="tab">PROFILE</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div class="tab-pane active" id="overview">
+                            <div class="panel-box padding-b">
+                                <div class="titles">
+                                    <h4>@Model.FullName overview</h4>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-lg-12 col-xl-4">
+                                        <img src="@playerImage" alt="@Model.FullName">
+                                    </div>
+
+                                    <div class="col-lg-12 col-xl-8">
+                                        @if (!string.IsNullOrWhiteSpace(Model.Biography))
+                                        {
+                                            <p>@Model.Biography</p>
+                                        }
+                                        else
+                                        {
+                                            <p>No biography has been added for this player yet.</p>
+                                        }
+
+                                        <div style="margin-top:20px;">
+                                            <p>
+                                                <strong>Playable Positions:</strong>
+                                                @(Model.PlayablePositions.Any()
+                                                                                                ? string.Join(", ", Model.PlayablePositions)
+                                                                                                : "Unknown")
+                                            </p>
+
+                                            <p>
+                                                <strong>Status:</strong>
+                                                @(Model.IsFreeAgent ? "Free Agent" : "Active Player")
+                                            </p>
+
+                                            <p>
+                                                <strong>Active Teams:</strong>
+                                                @Model.ActiveTeamsCount
+                                            </p>
+
+                                            <p>
+                                                <strong>Owner Teams:</strong>
+                                                @Model.OwnerTeamsCount
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="teams">
+                            <div class="col-lg-12">
+                                @if (Model.Teams.Count == 0)
+                                {
+                                    <div class="panel-box">
+                                        <div class="info-panel text-center" style="padding:40px 20px;">
+                                            <h4>No teams found</h4>
+                                            <p>This player is not associated with any team yet.</p>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <table class="table-striped table-responsive table-hover career">
+                                        <thead>
+                                            <tr>
+                                                <th>Team</th>
+                                                <th>Role</th>
+                                                <th>Squad Number</th>
+                                                <th>Status</th>
+                                                <th>Joined</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var team in Model.Teams)
+                                            {
+                                                var teamLogo = !string.IsNullOrWhiteSpace(team.TeamLogoUrl)
+                                                ? team.TeamLogoUrl
+                                                : Url.Content("~/img/default-team-logo.png");
+
+                                                <tr>
+                                                    <td>
+                                                        <img src="@teamLogo" alt="@team.TeamName" style="width:24px; height:24px; object-fit:cover; margin-right:6px;">
+                                                        <a asp-controller="Teams"
+                                                           asp-action="Details"
+                                                           asp-route-id="@team.TeamId">
+                                                            @team.TeamName
+                                                        </a>
+                                                    </td>
+                                                    <td>@team.Role</td>
+                                                    <td>@team.SquadNumber</td>
+                                                    <td>@(team.IsActive ? "Active" : "Inactive")</td>
+                                                    <td>@team.JoinedAtUtc.ToString("dd MMM yyyy")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="profile">
+                            <div class="row">
+                                <div class="col-lg-6 col-xl-6">
+                                    <div class="panel-box">
+                                        <div class="titles no-margin">
+                                            <h4><i class="fa fa-user"></i>Basic Info</h4>
+                                        </div>
+                                        <ul class="list-panel">
+                                            <li><p>Full Name <span>@Model.FullName</span></p></li>
+                                            <li><p>Nationality <span>@Model.Nationality</span></p></li>
+                                            <li><p>Age <span>@Model.Age</span></p></li>
+                                            <li><p>Birth Date <span>@Model.BirthDate.ToString("dd MMMM yyyy")</span></p></li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-6 col-xl-6">
+                                    <div class="panel-box">
+                                        <div class="titles no-margin">
+                                            <h4><i class="fa fa-address-card"></i>Physical & Football Info</h4>
+                                        </div>
+                                        <ul class="list-panel">
+                                            <li><p>Height <span>@Model.Height cm</span></p></li>
+                                            <li><p>Weight <span>@Model.Weight kg</span></p></li>
+                                            <li>
+                                                <p>
+                                                    Primary Position
+                                                    <span>@Model.PrimaryPosition</span>
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p>
+                                                    Playable Positions
+                                                    <span>
+                                                        @(Model.PlayablePositions.Any()
+                                                                                                                ? string.Join(", ", Model.PlayablePositions)
+                                                                                                                : "Unknown")
+                                                    </span>
+                                                </p>
+                                            </li>
+
+                                            @if (Model.IsOwnProfile && !string.IsNullOrWhiteSpace(Model.Email))
+                                            {
+                                                <li><p>Email <span>@Model.Email</span></p></li>
+                                            }
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-12">
+                                    <div class="panel-box">
+                                        <div class="titles no-margin">
+                                            <h4><i class="fa fa-file-text"></i>Biography</h4>
+                                        </div>
+                                        <div class="info-panel">
+                                            @if (!string.IsNullOrWhiteSpace(Model.Biography))
+                                            {
+                                                <p>@Model.Biography</p>
+                                            }
+                                            else
+                                            {
+                                                <p>No biography has been added for this player yet.</p>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Content Tabs -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.InviteState.CanInvite)
+    {
+        <div class="modal fade" id="inviteToTeamModal" tabindex="-1" role="dialog" aria-labelledby="inviteToTeamModalLabel">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <form asp-controller="Players" asp-action="InviteToTeam" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="modal-header">
+                            <h4 class="modal-title" id="inviteToTeamModalLabel">Invite Player To Team</h4>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="background:none; border:none; font-size:24px;">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+
+                        <div class="modal-body">
+                            <input type="hidden" name="PlayerId" value="@Model.Id" />
+
+                            <div class="form-group">
+                                <label>Team</label>
+                                <input type="text"
+                                       class="form-control"
+                                       value="@Model.InviteState.OwnerTeamName"
+                                       disabled />
+                            </div>
+
+                            <div class="form-group">
+                                <label>Proposed Squad Number</label>
+                                <input name="ProposedSquadNumber" class="form-control" min="1" max="99" type="number" />
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Send Invite</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+</section>

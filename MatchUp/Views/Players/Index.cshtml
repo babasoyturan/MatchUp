@@ -1,0 +1,221 @@
+﻿@model PlayersIndexVm
+
+@{
+    ViewData["Title"] = "Players";
+}
+
+<div class="section-title" style="background:url('/img/slide/1.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>Players List</h1>
+            </div>
+
+            <div class="col-md-4">
+                <div class="breadcrumbs">
+                    <ul>
+                        <li><a asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li>Players</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content-info">
+    <div class="portfolioFilter">
+        <div class="container">
+            <h5><i class="fa fa-filter" aria-hidden="true"></i>Sort By:</h5>
+
+            <a href="#"
+               class="player-sort-link @(Model.Filter.SortBy == PlayerSortBy.Newest ? "current" : "")"
+               data-sort="@((int)PlayerSortBy.Newest)">
+                Newest
+            </a>
+
+            <a href="#"
+               class="player-sort-link @(Model.Filter.SortBy == PlayerSortBy.NameAsc ? "current" : "")"
+               data-sort="@((int)PlayerSortBy.NameAsc)">
+                A-Z
+            </a>
+
+            <a href="#"
+               class="player-sort-link @(Model.Filter.SortBy == PlayerSortBy.NameDesc ? "current" : "")"
+               data-sort="@((int)PlayerSortBy.NameDesc)">
+                Z-A
+            </a>
+        </div>
+    </div>
+
+    <div class="container paddings-mini">
+        <form id="playersFilterForm">
+            <input type="hidden" id="SortBy" name="SortBy" value="@((int)Model.Filter.SortBy)" />
+            <input type="hidden" id="Page" name="Page" value="@Model.Filter.Page" />
+            <input type="hidden" id="PageSize" name="PageSize" value="@Model.Filter.PageSize" />
+
+            <div class="row">
+                <aside class="col-lg-3">
+                    <div>
+                        <h4>Search Sidebar</h4>
+                        <div class="search">
+                            <div class="input-group">
+                                <input id="Search"
+                                       name="Search"
+                                       class="form-control"
+                                       placeholder="Search by player name..."
+                                       type="text"
+                                       value="@Model.Filter.Search" />
+
+                                <span class="input-group-btn">
+                                    <button class="btn btn-primary"
+                                            type="button"
+                                            id="players-search-btn">
+                                        Go!
+                                    </button>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-box" style="margin-top:30px;">
+                        <div class="titles no-margin">
+                            <h4>Filters</h4>
+                        </div>
+
+                        <div class="info-panel">
+                            <div class="form-group" style="margin-bottom:15px;">
+                                <label for="Position"><strong>Position</strong></label>
+                                <select id="Position" name="Position" class="form-control">
+                                    <option value="">All Positions</option>
+                                    @foreach (var position in Enum.GetValues<PlayerPosition>())
+                                    {
+                                        if (Model.Filter.Position == position)
+                                        {
+                                            <option value="@((int)position)" selected="selected">@position</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@((int)position)">@position</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom:15px;">
+                                <label style="font-weight:normal;">
+                                    <input type="checkbox"
+                                           id="FreeAgentOnly"
+                                           name="FreeAgentOnly"
+                                           value="true"
+                                           @(Model.Filter.FreeAgentOnly ? "checked" : null) />
+                                    Free Agent Only
+                                </label>
+                            </div>
+
+                            <button type="button"
+                                    id="players-filter-btn"
+                                    class="btn btn-primary"
+                                    style="width:100%;">
+                                Apply Filters
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="panel-box" style="margin-top:30px;">
+                        <div class="titles no-margin">
+                            <h4>Results</h4>
+                        </div>
+                        <div class="info-panel">
+                            <p style="margin-bottom:0;">
+                                Total Players:
+                                <strong id="players-total-count">@Model.TotalCount</strong>
+                            </p>
+                        </div>
+                    </div>
+                </aside>
+
+                <div class="col-lg-9">
+                    <div id="players-results">
+                        @await Html.PartialAsync("_PlayersListPartial", Model)
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        $(function () {
+            let searchTimer = null;
+
+            function loadPlayers() {
+                const url = '@Url.Action("ListPartial", "Players")';
+                const data = $('#playersFilterForm').serialize();
+
+                $.get(url, data, function (html) {
+                    $('#players-results').html(html);
+                    syncSummary();
+                });
+            }
+
+            function syncSummary() {
+                const totalCount = $('#players-results').find('[data-total-count]').first().data('total-count');
+                if (typeof totalCount !== 'undefined') {
+                    $('#players-total-count').text(totalCount);
+                }
+            }
+
+            $('.player-sort-link').on('click', function (e) {
+                e.preventDefault();
+
+                const sortValue = $(this).data('sort');
+                $('#SortBy').val(sortValue);
+                $('#Page').val(1);
+
+                $('.player-sort-link').removeClass('current');
+                $(this).addClass('current');
+
+                loadPlayers();
+            });
+
+            $('#players-search-btn').on('click', function () {
+                $('#Page').val(1);
+                loadPlayers();
+            });
+
+            $('#players-filter-btn').on('click', function () {
+                $('#Page').val(1);
+                loadPlayers();
+            });
+
+            $('#Search').on('input', function () {
+                clearTimeout(searchTimer);
+
+                searchTimer = setTimeout(function () {
+                    $('#Page').val(1);
+                    loadPlayers();
+                }, 400);
+            });
+
+            $('#Position, #FreeAgentOnly').on('change', function () {
+                $('#Page').val(1);
+                loadPlayers();
+            });
+
+            $(document).on('click', '.players-page-link', function (e) {
+                e.preventDefault();
+
+                const page = $(this).data('page');
+                $('#Page').val(page);
+
+                loadPlayers();
+
+                $('html, body').animate({
+                    scrollTop: $('.portfolioFilter').offset().top
+                }, 300);
+            });
+        });
+    </script>
+}
