@@ -7,6 +7,26 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="wwwroot\assets\.DS_Store" />
+    <None Include="wwwroot\assets\css\.DS_Store" />
+    <None Include="wwwroot\assets\fonts\.DS_Store" />
+    <None Include="wwwroot\assets\js\.DS_Store" />
+    <None Include="wwwroot\assets\sass\bootstrap\.DS_Store" />
+    <None Include="wwwroot\img\.DS_Store" />
+    <None Include="wwwroot\img\adds\.DS_Store" />
+    <None Include="wwwroot\img\blog\.DS_Store" />
+    <None Include="wwwroot\img\clubs-logos\.DS_Store" />
+    <None Include="wwwroot\img\clubs-teams\.DS_Store" />
+    <None Include="wwwroot\img\grid\.DS_Store" />
+    <None Include="wwwroot\img\img-theme\.DS_Store" />
+    <None Include="wwwroot\img\locations\.DS_Store" />
+    <None Include="wwwroot\img\players\.DS_Store" />
+    <None Include="wwwroot\img\slide\.DS_Store" />
+    <None Include="wwwroot\img\sponsors\.DS_Store" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CloudinaryDotNet" Version="1.28.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.24" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.24" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.24">
