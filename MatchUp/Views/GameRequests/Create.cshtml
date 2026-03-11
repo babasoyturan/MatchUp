@@ -1,0 +1,100 @@
+﻿@model MatchUp.ViewModels.GameRequests.CreateGameRequestVm
+
+@{
+    ViewData["Title"] = "Send Game Request";
+}
+
+<div class="section-title" style="background:url('/img/slide/1.jpg')">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>Send Game Request</h1>
+            </div>
+
+            <div class="col-md-4">
+                <div class="breadcrumbs">
+                    <ul>
+                        <li><a asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li><a asp-controller="Teams" asp-action="Details" asp-route-id="@Model.OpponentTeamId">@Model.OpponentTeamName</a></li>
+                        <li>Send Game Request</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content-info">
+    <div class="container paddings-mini">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="panel-box">
+                    <div class="titles">
+                        <h4>@Model.FromTeamName → @Model.OpponentTeamName</h4>
+                    </div>
+
+                    <div class="info-panel">
+                        <form asp-controller="GameRequests" asp-action="Create" method="post">
+                            @Html.AntiForgeryToken()
+
+                            <input type="hidden" asp-for="OpponentTeamId" />
+                            <input type="hidden" asp-for="FromTeamId" />
+
+                            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                            <div class="form-group">
+                                <label asp-for="SelectedFormat"><strong>Format</strong></label>
+                                <select asp-for="SelectedFormat" asp-items="Model.FormatOptions" class="form-control">
+                                    <option value="">Select format</option>
+                                </select>
+                                <span asp-validation-for="SelectedFormat" class="text-danger"></span>
+                            </div>
+
+                            <div class="form-group" style="margin-top:15px;">
+                                <label asp-for="SelectedSlotStartAtUtc"><strong>Available Slot</strong></label>
+                                <select asp-for="SelectedSlotStartAtUtc" asp-items="Model.SlotOptions" class="form-control">
+                                    <option value="">Select slot</option>
+                                </select>
+                                <span asp-validation-for="SelectedSlotStartAtUtc" class="text-danger"></span>
+                            </div>
+
+                            <div class="form-group" style="margin-top:15px;">
+                                <label asp-for="Message"><strong>Message</strong></label>
+                                <textarea asp-for="Message" class="form-control" rows="4" placeholder="Optional message"></textarea>
+                                <span asp-validation-for="Message" class="text-danger"></span>
+                            </div>
+
+                            <div class="form-group" style="margin-top:20px;">
+                                <button type="submit" class="btn btn-primary">Send Request</button>
+                                <a asp-controller="Teams" asp-action="Details" asp-route-id="@Model.OpponentTeamId" class="btn btn-secondary">
+                                    Cancel
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="panel-box">
+                    <div class="titles">
+                        <h4>Request Rules</h4>
+                    </div>
+
+                    <div class="info-panel">
+                        <ul class="list-panel">
+                            <li><p>Duration <span>60 minutes</span></p></li>
+                            <li><p>Based On <span>Open To Game overlap</span></p></li>
+                            <li><p>Visible Slots <span>Next 7 days</span></p></li>
+                            <li><p>Opponent Response <span>Required</span></p></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

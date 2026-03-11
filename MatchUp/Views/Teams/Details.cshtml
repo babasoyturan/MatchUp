@@ -337,7 +337,7 @@
                                                             <strong>@Model.Name</strong>
 
                                                             <br>
-                                                            <small class="meta-text">Home</small>
+                                                            <small class="meta-text">Away</small>
                                                         }
                                                         else
                                                         {
@@ -351,7 +351,7 @@
                                                             </strong>
 
                                                             <br>
-                                                            <small class="meta-text">Away</small>
+                                                            <small class="meta-text">Home</small>
                                                         }
                                                     </td>
 
@@ -370,7 +370,7 @@
                                                             </strong>
 
                                                             <br>
-                                                            <small class="meta-text">Away</small>
+                                                            <small class="meta-text">Home</small>
                                                         }
                                                         else
                                                         {
@@ -378,12 +378,17 @@
                                                             <strong>@Model.Name</strong>
 
                                                             <br>
-                                                            <small class="meta-text">Home</small>
+                                                            <small class="meta-text">Away</small>
                                                         }
                                                     </td>
 
                                                     <td>
-                                                        @match.StartAtUtc.ToString("dd MMM yyyy, HH:mm")<br>
+                                                        <a asp-controller="Matches"
+                                                            asp-action="Details"
+                                                            asp-route-id="@match.MatchId">
+                                                            @match.StartAtUtc.ToString("dd MMM yyyy, HH:mm")
+                                                        </a>
+                                                        <br>
                                                         <small class="meta-text">@match.VenueText</small><br>
                                                         <small class="meta-text">@match.Format</small>
                                                     </td>
@@ -668,19 +673,33 @@
                                     }
                                 </ul>
                             }
-                        </div>
-                        @if (Model.IsOwnerView)
-                        {
+
                             <div style="margin-top:15px;">
-                                <a asp-controller="Teams"
-                                   asp-action="ManageOpenToGame"
-                                   asp-route-id="@Model.Id"
-                                   class="btn">
-                                    Manage Open To Game
-                                    <i class="fa fa-angle-right" aria-hidden="true"></i>
-                                </a>
+                                @if (Model.CanSendGameRequest && Model.SendGameRequestOpponentTeamId.HasValue)
+                                {
+                                    <a asp-controller="GameRequests"
+                                       asp-action="Create"
+                                       asp-route-opponentTeamId="@Model.SendGameRequestOpponentTeamId.Value"
+                                       class="btn"
+                                       style="display:block; margin-bottom:10px;">
+                                        Send Game Request
+                                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                                    </a>
+                                }
+
+                                @if (Model.IsOwnerView)
+                                {
+                                    <a asp-controller="Teams"
+                                       asp-action="ManageOpenToGame"
+                                       asp-route-id="@Model.Id"
+                                       class="btn"
+                                       style="display:block;">
+                                        Manage Open To Game
+                                        <i class="fa fa-angle-right" aria-hidden="true"></i>
+                                    </a>
+                                }
                             </div>
-                        }
+                        </div>
                     </div>
 
                     <div class="panel-box">

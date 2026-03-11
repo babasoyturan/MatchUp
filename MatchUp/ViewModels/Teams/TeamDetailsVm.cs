@@ -23,6 +23,9 @@
         public bool IsOwnerView { get; set; }
         public bool IsMemberView { get; set; }
 
+        public bool CanSendGameRequest { get; set; }
+        public Guid? SendGameRequestOpponentTeamId { get; set; }
+
         public TeamDetailsOpenToGameVm OpenToGame { get; set; } = new();
         public TeamDetailsStatsVm Stats { get; set; } = new();
 

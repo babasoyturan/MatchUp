@@ -24,6 +24,8 @@
         TeamInviteDeclined = 14,
 
         OpenToGameApprovalAccepted = 15,
-        OpenToGameApprovalDeclined = 16
+        OpenToGameApprovalDeclined = 16,
+
+        MatchVenueProposalReceived = 17
     }
 }

@@ -125,6 +125,19 @@ namespace MatchUp.Controllers
             var isMemberView = activeMemberships.Any(x =>
                 x.PlayerId == currentPlayerId);
 
+            var ownedOpenTeam = await GetOwnedActiveOpenToGameTeamAsync(currentPlayerId);
+            var blockedOpponentIds = ownedOpenTeam is null
+                ? new HashSet<Guid>()
+                : await GetBlockedOpponentIdsAsync(ownedOpenTeam.Id);
+
+            var canSendGameRequest =
+                ownedOpenTeam is not null &&
+                ownedOpenTeam.Id != team.Id &&
+                team.IsOpenToGame &&
+                team.ActiveOpenToGameSubmissionId != null &&
+                !blockedOpponentIds.Contains(team.Id) &&
+                IsCompatible(ownedOpenTeam, team);
+
             var vm = new TeamDetailsVm
             {
                 Id = team.Id,
@@ -147,7 +160,9 @@ namespace MatchUp.Controllers
                 Squad = squad,
                 Fixtures = fixtures,
                 Results = results,
-                UpcomingMatchesPreview = fixtures.Take(3).ToList()
+                UpcomingMatchesPreview = fixtures.Take(3).ToList(),
+                CanSendGameRequest = canSendGameRequest,
+                SendGameRequestOpponentTeamId = canSendGameRequest ? team.Id : null
             };
 
             return View(vm);
@@ -934,17 +949,17 @@ namespace MatchUp.Controllers
 
             var formatOverlap = ownerSubmission.Formats.Intersect(candidateSubmission.Formats).Any();
 
-            var timeOverlap = ownerSubmission.TimeWindows
+            var hasOneHourTimeOverlap = ownerSubmission.TimeWindows
                 .Where(x => x.IsActive)
                 .Any(ownerWindow =>
                     candidateSubmission.TimeWindows
                         .Where(x => x.IsActive)
                         .Any(candidateWindow =>
                             ownerWindow.Day == candidateWindow.Day &&
-                            ownerWindow.StartMinute < candidateWindow.EndMinute &&
-                            candidateWindow.StartMinute < ownerWindow.EndMinute));
+                            Math.Min(ownerWindow.EndMinute, candidateWindow.EndMinute) -
+                            Math.Max(ownerWindow.StartMinute, candidateWindow.StartMinute) >= 60));
 
-            return formatOverlap && timeOverlap;
+            return formatOverlap && hasOneHourTimeOverlap;
         }
 
         private Guid GetCurrentPlayerId()

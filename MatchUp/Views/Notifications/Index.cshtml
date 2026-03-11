@@ -108,6 +108,34 @@
                                             </p>
                                         }
 
+                                        @if (!string.IsNullOrWhiteSpace(notification.GameRequestStatus))
+                                        {
+                                            <p>
+                                                <strong>Game Request Status:</strong> @notification.GameRequestStatus
+                                            </p>
+                                        }
+
+                                        @if (notification.GameRequestStartAtUtc.HasValue)
+                                        {
+                                            <p>
+                                                <strong>Match Start:</strong> @notification.GameRequestStartAtUtc.Value.ToString("dd MMM yyyy HH:mm")
+                                            </p>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(notification.GameRequestFormat))
+                                        {
+                                            <p>
+                                                <strong>Format:</strong> @notification.GameRequestFormat
+                                            </p>
+                                        }
+
+                                        @if (notification.GameRequestDurationMinutes.HasValue)
+                                        {
+                                            <p>
+                                                <strong>Duration:</strong> @notification.GameRequestDurationMinutes.Value min
+                                            </p>
+                                        }
+
                                         <div style="margin-top:15px;">
                                             @if (notification.CanAccept && notification.TeamInviteId.HasValue)
                                             {
@@ -169,11 +197,43 @@
                                                 </form>
                                             }
 
-                                            @if (!notification.IsRead
-                                                && !notification.CanAccept
-                                                && !notification.CanDecline
-                                                && !notification.CanApproveOpenToGame
-                                                && !notification.CanDeclineOpenToGame)
+                                            @if (notification.CanAcceptGameRequest && notification.GameRequestId.HasValue)
+                                            {
+                                                <form asp-controller="Notifications"
+                                                      asp-action="AcceptGameRequest"
+                                                      method="post"
+                                                      style="display:inline-block; margin-right:10px;">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="gameRequestId" value="@notification.GameRequestId.Value" />
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-success">
+                                                        Accept Game Request
+                                                    </button>
+                                                </form>
+                                            }
+
+                                            @if (notification.CanDeclineGameRequest && notification.GameRequestId.HasValue)
+                                            {
+                                                <form asp-controller="Notifications"
+                                                      asp-action="DeclineGameRequest"
+                                                      method="post"
+                                                      style="display:inline-block; margin-right:10px;">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="gameRequestId" value="@notification.GameRequestId.Value" />
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-danger">
+                                                        Decline Game Request
+                                                    </button>
+                                                </form>
+                                            }
+
+                                            @if (!notification.IsRead &&
+                                                !notification.CanAccept &&
+                                                !notification.CanDecline &&
+                                                !notification.CanApproveOpenToGame &&
+                                                !notification.CanDeclineOpenToGame &&
+                                                !notification.CanAcceptGameRequest &&
+                                                !notification.CanDeclineGameRequest)
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="MarkAsRead"

@@ -1,0 +1,343 @@
+﻿@model MatchUp.ViewModels.Matches.ProposeVenueVm
+@using MatchUp.Utilities.Enums
+
+@{
+    ViewData["Title"] = "Propose Venue";
+    var heroImage = Url.Content("~/img/slide/1.jpg");
+    var defaultPreviewImage = Url.Content("~/img/locations/1.jpg");
+}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<style>
+    .propose-venue-section {
+        padding-top: 30px;
+        padding-bottom: 90px;
+    }
+
+    .venue-type-box label {
+        margin-right: 18px;
+        font-weight: 600;
+    }
+
+    .stadium-preview-box {
+        margin-top: 15px;
+        border: 1px solid #e5e5e5;
+        padding: 12px;
+        border-radius: 4px;
+        background: #fafafa;
+    }
+
+        .stadium-preview-box img {
+            width: 100%;
+            height: 240px;
+            object-fit: cover;
+            border-radius: 4px;
+            display: block;
+        }
+
+    .proposal-submit-btn {
+        min-width: 240px;
+        padding: 12px 24px;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    #venueMap {
+        width: 100%;
+        height: 380px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        margin-top: 10px;
+    }
+
+    .hidden-coordinates {
+        display: none;
+    }
+</style>
+
+<div class="section-title" style="background:url('@heroImage') center center / cover no-repeat;">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>Propose Venue</h1>
+            </div>
+
+            <div class="col-md-4">
+                <div class="breadcrumbs">
+                    <ul>
+                        <li><a asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li><a asp-controller="Matches" asp-action="Details" asp-route-id="@Model.MatchId">Match Details</a></li>
+                        <li>Propose Venue</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content-info propose-venue-section">
+    <div class="container paddings-mini">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="panel-box">
+                    <div class="titles">
+                        <h4>Venue Proposal Form</h4>
+                    </div>
+
+                    <div class="info-panel">
+                        <form asp-controller="Matches" asp-action="ProposeVenue" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" asp-for="MatchId" />
+
+                            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                            <div class="form-group">
+                                <label><strong>Match</strong></label>
+                                <p>@Model.HomeTeamName vs @Model.AwayTeamName</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Start Time</strong></label>
+                                <p>@Model.StartAtUtc.ToString("dd MMM yyyy HH:mm")</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Current Venue</strong></label>
+                                <p>@Model.CurrentVenueText</p>
+                            </div>
+
+                            <div class="form-group venue-type-box">
+                                <label><strong>Venue Type</strong></label>
+                                <div>
+                                    <label>
+                                        <input type="radio"
+                                               name="VenueKind"
+                                               value="@((int)VenueKind.Stadium)"
+                                               @(Model.VenueKind == VenueKind.Stadium ? "checked" : null) />
+                                        Stadium
+                                    </label>
+
+                                    <label>
+                                        <input type="radio"
+                                               name="VenueKind"
+                                               value="@((int)VenueKind.Custom)"
+                                               @(Model.VenueKind == VenueKind.Custom ? "checked" : null) />
+                                        Custom
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="stadium-section">
+                                <div class="form-group">
+                                    <label asp-for="ProposedStadiumId"><strong>Select Stadium</strong></label>
+                                    <select asp-for="ProposedStadiumId" id="stadiumSelect" class="form-control">
+                                        <option value="">-- Select Stadium --</option>
+                                        @foreach (var stadium in Model.StadiumOptions)
+                                        {
+                                            var isSelected = Model.ProposedStadiumId.HasValue && Model.ProposedStadiumId.Value == stadium.Id;
+
+                                            if (isSelected)
+                                            {
+                                                <option value="@stadium.Id" data-image="@stadium.ImageUrl" selected="selected">
+                                                    @stadium.Text
+                                                </option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@stadium.Id" data-image="@stadium.ImageUrl">
+                                                    @stadium.Text
+                                                </option>
+                                            }
+                                        }
+                                    </select>
+                                    <span asp-validation-for="ProposedStadiumId" class="text-danger"></span>
+                                </div>
+
+                                <div class="stadium-preview-box" id="stadiumPreviewWrapper">
+                                    <p><strong>Selected Stadium Preview</strong></p>
+                                    <img id="stadiumPreviewImage"
+                                         src="@defaultPreviewImage"
+                                         alt="Selected stadium preview" />
+                                </div>
+                            </div>
+
+                            <div id="custom-section">
+                                <div class="form-group">
+                                    <label asp-for="ProposedCustomVenueName"><strong>Venue Name</strong></label>
+                                    <input asp-for="ProposedCustomVenueName" class="form-control" />
+                                    <span asp-validation-for="ProposedCustomVenueName" class="text-danger"></span>
+                                </div>
+
+                                <div class="form-group">
+                                    <label asp-for="ProposedCustomFormattedAddress"><strong>Address</strong></label>
+                                    <input asp-for="ProposedCustomFormattedAddress" id="customAddressInput" class="form-control" />
+                                    <span asp-validation-for="ProposedCustomFormattedAddress" class="text-danger"></span>
+                                </div>
+
+                                <div class="form-group hidden-coordinates">
+                                    <input asp-for="ProposedCustomLatitude" id="customLatitudeInput" class="form-control" />
+                                    <input asp-for="ProposedCustomLongitude" id="customLongitudeInput" class="form-control" />
+                                </div>
+
+                                <div class="form-group">
+                                    <label><strong>Choose Location On Map</strong></label>
+                                    <div id="venueMap"></div>
+                                    <span asp-validation-for="ProposedCustomLatitude" class="text-danger"></span>
+                                    <span asp-validation-for="ProposedCustomLongitude" class="text-danger"></span>
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-top:20px;">
+                                <button type="submit" class="btn btn-primary proposal-submit-btn">
+                                    Submit Venue Proposal
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="panel-box">
+                    <div class="titles no-margin">
+                        <h4>Help</h4>
+                    </div>
+
+                    <div class="info-panel">
+                        <p>Choose one of the active stadiums in the system or create a custom venue.</p>
+                        <p>If you choose custom venue, pick the exact location on the map. The address will be filled automatically.</p>
+                        <p>After submission, the opposing team owner must approve the venue proposal.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        (function () {
+            const stadiumValue = '@((int)VenueKind.Stadium)';
+            const customValue = '@((int)VenueKind.Custom)';
+            const defaultImage = '@defaultPreviewImage';
+
+            const stadiumSection = document.getElementById('stadium-section');
+            const customSection = document.getElementById('custom-section');
+
+            const stadiumSelect = document.getElementById('stadiumSelect');
+            const stadiumPreviewImage = document.getElementById('stadiumPreviewImage');
+
+            const addressInput = document.getElementById('customAddressInput');
+            const latitudeInput = document.getElementById('customLatitudeInput');
+            const longitudeInput = document.getElementById('customLongitudeInput');
+
+            function getSelectedVenueKind() {
+                const selected = document.querySelector('input[name="VenueKind"]:checked');
+                return selected ? selected.value : stadiumValue;
+            }
+
+            function toggleVenueSections() {
+                const selectedValue = getSelectedVenueKind();
+
+                if (selectedValue === stadiumValue) {
+                    stadiumSection.style.display = 'block';
+                    customSection.style.display = 'none';
+                } else {
+                    stadiumSection.style.display = 'none';
+                    customSection.style.display = 'block';
+
+                    setTimeout(function () {
+                        map.invalidateSize();
+                    }, 100);
+                }
+            }
+
+            function updateStadiumPreview() {
+                if (!stadiumSelect || !stadiumPreviewImage) return;
+
+                const selectedOption = stadiumSelect.options[stadiumSelect.selectedIndex];
+
+                if (!selectedOption || !selectedOption.value) {
+                    stadiumPreviewImage.src = defaultImage;
+                    return;
+                }
+
+                const imageUrl = selectedOption.getAttribute('data-image');
+                stadiumPreviewImage.src = imageUrl && imageUrl.trim() !== ''
+                    ? imageUrl
+                    : defaultImage;
+            }
+
+            if (stadiumPreviewImage) {
+                stadiumPreviewImage.addEventListener('error', function () {
+                    stadiumPreviewImage.src = defaultImage;
+                });
+            }
+
+            const radios = document.querySelectorAll('input[name="VenueKind"]');
+            radios.forEach(function (radio) {
+                radio.addEventListener('change', toggleVenueSections);
+            });
+
+            if (stadiumSelect) {
+                stadiumSelect.addEventListener('change', updateStadiumPreview);
+            }
+
+            const initialLat = latitudeInput && latitudeInput.value ? parseFloat(latitudeInput.value) : 40.4093;
+            const initialLng = longitudeInput && longitudeInput.value ? parseFloat(longitudeInput.value) : 49.8671;
+
+            const map = L.map('venueMap').setView([initialLat, initialLng], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            let marker = null;
+
+            function setMarker(lat, lng) {
+                if (marker) {
+                    marker.setLatLng([lat, lng]);
+                } else {
+                    marker = L.marker([lat, lng]).addTo(map);
+                }
+            }
+
+            if (latitudeInput.value && longitudeInput.value) {
+                setMarker(parseFloat(latitudeInput.value), parseFloat(longitudeInput.value));
+            }
+
+            async function reverseGeocode(lat, lng) {
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+                    if (!response.ok) return;
+
+                    const data = await response.json();
+                    if (data && data.display_name && addressInput) {
+                        addressInput.value = data.display_name;
+                    }
+                } catch (e) {
+                    console.error('Reverse geocoding failed:', e);
+                }
+            }
+
+            map.on('click', async function (e) {
+                const lat = e.latlng.lat;
+                const lng = e.latlng.lng;
+
+                latitudeInput.value = lat;
+                longitudeInput.value = lng;
+
+                setMarker(lat, lng);
+                await reverseGeocode(lat, lng);
+            });
+
+            toggleVenueSections();
+            updateStadiumPreview();
+        })();
+    </script>
+}

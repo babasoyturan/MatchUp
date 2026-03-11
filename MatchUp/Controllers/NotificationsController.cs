@@ -56,10 +56,35 @@ namespace MatchUp.Controllers
 
             var submissions = await _context.OpenToGameSubmissions
                 .AsNoTracking()
+                .Where(x => submissionIds.Contains(x.Id))
                 .Include(x => x.Team)
                 .Include(x => x.MemberApprovals)
                 .ToDictionaryAsync(x => x.Id);
 
+            var gameRequestIds = notifications
+                .Where(x => x.TargetType == NotificationTargetType.GameRequest && x.TargetId.HasValue)
+                .Select(x => x.TargetId!.Value)
+                .Distinct()
+                .ToList();
+
+            var gameRequests = await _context.GameRequests
+                .AsNoTracking()
+                .Where(x => gameRequestIds.Contains(x.Id))
+                .Include(x => x.FromTeam)
+                .Include(x => x.ToTeam)
+                .ToDictionaryAsync(x => x.Id);
+
+            var ownedTeamIds = await _context.TeamMembers
+                .AsNoTracking()
+                .Where(x =>
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.IsActive &&
+                    x.Role == TeamRole.Owner)
+                .Select(x => x.TeamId)
+                .Distinct()
+                .ToListAsync();
+
+            var ownedTeamIdSet = ownedTeamIds.ToHashSet();
             var now = DateTime.UtcNow;
 
             var vm = new NotificationsIndexVm
@@ -68,21 +93,40 @@ namespace MatchUp.Controllers
                 Notifications = notifications.Select(n =>
                 {
                     invites.TryGetValue(n.TargetId ?? Guid.Empty, out var invite);
+                    submissions.TryGetValue(n.TargetId ?? Guid.Empty, out var submission);
+                    gameRequests.TryGetValue(n.TargetId ?? Guid.Empty, out var gameRequest);
 
                     var isInviteNotification =
                         n.TargetType == NotificationTargetType.TeamInvite &&
                         invite is not null;
 
-                    var canAcceptOrDecline =
+                    var canAcceptOrDeclineInvite =
                         isInviteNotification &&
                         invite!.InvitedPlayerId == currentPlayerId.Value &&
                         invite.Status == InviteStatus.Pending &&
                         invite.ExpiresAtUtc > now;
 
-                    submissions.TryGetValue(n.TargetId ?? Guid.Empty, out var submission);
-
                     var approvalRow = submission?.MemberApprovals
                         .FirstOrDefault(x => x.PlayerId == currentPlayerId.Value);
+
+                    var canRespondOpenToGame =
+                        n.Type == NotificationType.OpenToGameApprovalRequired &&
+                        submission is not null &&
+                        submission.Status == OpenToGameSubmissionStatus.PendingApprovals &&
+                        approvalRow is not null &&
+                        approvalRow.Status == ApprovalStatus.Pending;
+
+                    var canRespondGameRequest =
+                        n.Type == NotificationType.GameRequestReceived &&
+                        gameRequest is not null &&
+                        gameRequest.Status == GameRequestStatus.Pending &&
+                        ownedTeamIdSet.Contains(gameRequest.ToTeamId);
+
+                    var teamName =
+                        invite?.Team?.Name ??
+                        submission?.Team?.Name ??
+                        gameRequest?.FromTeam?.Name ??
+                        gameRequest?.ToTeam?.Name;
 
                     return new NotificationListItemVm
                     {
@@ -93,33 +137,29 @@ namespace MatchUp.Controllers
                         IsRead = n.IsRead,
                         CreatedAtUtc = n.CreatedAtUtc,
 
-                        CanAccept = canAcceptOrDecline,
-                        CanDecline = canAcceptOrDecline,
+                        TeamName = teamName,
+
+                        CanAccept = canAcceptOrDeclineInvite,
+                        CanDecline = canAcceptOrDeclineInvite,
 
                         TeamInviteId = invite?.Id,
                         TeamInviteStatus = invite?.Status.ToString(),
                         ProposedSquadNumber = invite?.ProposedSquadNumber,
                         InviteExpiresAtUtc = invite?.ExpiresAtUtc,
+                        IsExpired = invite is not null && invite.ExpiresAtUtc <= now,
 
                         OpenToGameSubmissionId = submission?.Id,
                         OpenToGameSubmissionStatus = submission?.Status.ToString(),
+                        CanApproveOpenToGame = canRespondOpenToGame,
+                        CanDeclineOpenToGame = canRespondOpenToGame,
 
-                        CanApproveOpenToGame =
-                            n.Type == NotificationType.OpenToGameApprovalRequired &&
-                            submission is not null &&
-                            submission.Status == OpenToGameSubmissionStatus.PendingApprovals &&
-                            approvalRow is not null &&
-                            approvalRow.Status == ApprovalStatus.Pending,
-
-                        CanDeclineOpenToGame =
-                            n.Type == NotificationType.OpenToGameApprovalRequired &&
-                            submission is not null &&
-                            submission.Status == OpenToGameSubmissionStatus.PendingApprovals &&
-                            approvalRow is not null &&
-                            approvalRow.Status == ApprovalStatus.Pending,
-
-                        TeamName = invite?.Team?.Name ?? submission?.Team?.Name,
-                        IsExpired = invite is not null && invite.ExpiresAtUtc <= now
+                        GameRequestId = gameRequest?.Id,
+                        GameRequestStatus = gameRequest?.Status.ToString(),
+                        GameRequestStartAtUtc = gameRequest?.StartAtUtc,
+                        GameRequestDurationMinutes = gameRequest?.DurationMinutes,
+                        GameRequestFormat = gameRequest?.Format.ToString(),
+                        CanAcceptGameRequest = canRespondGameRequest,
+                        CanDeclineGameRequest = canRespondGameRequest
                     };
                 }).ToList()
             };
@@ -244,7 +284,6 @@ namespace MatchUp.Controllers
             }
 
             var teamOwner = await _context.TeamMembers
-                .Include(x => x.Player)
                 .FirstOrDefaultAsync(x =>
                     x.TeamId == invite.TeamId &&
                     x.Role == TeamRole.Owner &&
@@ -252,9 +291,8 @@ namespace MatchUp.Controllers
 
             if (teamOwner is not null && teamOwner.PlayerId != currentPlayerId.Value)
             {
-                var acceptedNotification = new Notification
+                _context.Notifications.Add(new Notification
                 {
-                    Id = Guid.NewGuid(),
                     PlayerId = teamOwner.PlayerId,
                     Type = NotificationType.TeamInviteAccepted,
                     Title = "Team invite accepted",
@@ -262,9 +300,7 @@ namespace MatchUp.Controllers
                     TargetType = NotificationTargetType.TeamInvite,
                     TargetId = invite.Id,
                     IsRead = false
-                };
-
-                _context.Notifications.Add(acceptedNotification);
+                });
             }
 
             await _context.SaveChangesAsync();
@@ -329,7 +365,6 @@ namespace MatchUp.Controllers
             }
 
             var teamOwner = await _context.TeamMembers
-                .Include(x => x.Player)
                 .FirstOrDefaultAsync(x =>
                     x.TeamId == invite.TeamId &&
                     x.Role == TeamRole.Owner &&
@@ -337,9 +372,8 @@ namespace MatchUp.Controllers
 
             if (teamOwner is not null && teamOwner.PlayerId != currentPlayerId.Value)
             {
-                var declinedNotification = new Notification
+                _context.Notifications.Add(new Notification
                 {
-                    Id = Guid.NewGuid(),
                     PlayerId = teamOwner.PlayerId,
                     Type = NotificationType.TeamInviteDeclined,
                     Title = "Team invite declined",
@@ -347,9 +381,7 @@ namespace MatchUp.Controllers
                     TargetType = NotificationTargetType.TeamInvite,
                     TargetId = invite.Id,
                     IsRead = false
-                };
-
-                _context.Notifications.Add(declinedNotification);
+                });
             }
 
             await _context.SaveChangesAsync();
@@ -403,23 +435,9 @@ namespace MatchUp.Controllers
 
             if (submission.MemberApprovals.All(x => x.Status == ApprovalStatus.Approved))
             {
-                if (submission.Team!.ActiveOpenToGameSubmissionId.HasValue &&
-                    submission.Team.ActiveOpenToGameSubmissionId.Value != submission.Id)
-                {
-                    var oldActiveSubmission = await _context.OpenToGameSubmissions
-                        .FirstOrDefaultAsync(x => x.Id == submission.Team.ActiveOpenToGameSubmissionId.Value);
-
-                    if (oldActiveSubmission is not null)
-                    {
-                        oldActiveSubmission.Status = OpenToGameSubmissionStatus.Superseded;
-                        oldActiveSubmission.ResolvedAtUtc = DateTime.UtcNow;
-                    }
-                }
-
                 submission.Status = OpenToGameSubmissionStatus.Active;
                 submission.ResolvedAtUtc = DateTime.UtcNow;
-
-                submission.Team.IsOpenToGame = true;
+                submission.Team!.IsOpenToGame = true;
                 submission.Team.ActiveOpenToGameSubmissionId = submission.Id;
 
                 var pendingNotifications = await _context.Notifications
@@ -439,6 +457,7 @@ namespace MatchUp.Controllers
                 var activePlayerIds = await _context.TeamMembers
                     .Where(x => x.TeamId == submission.TeamId && x.IsActive)
                     .Select(x => x.PlayerId)
+                    .Distinct()
                     .ToListAsync();
 
                 foreach (var playerId in activePlayerIds)
@@ -498,12 +517,10 @@ namespace MatchUp.Controllers
 
             submission.Status = OpenToGameSubmissionStatus.Cancelled;
             submission.ResolvedAtUtc = DateTime.UtcNow;
+            submission.Team!.IsOpenToGame = false;
 
-            if (submission.Team!.ActiveOpenToGameSubmissionId == submission.Id)
-            {
-                submission.Team.IsOpenToGame = false;
+            if (submission.Team.ActiveOpenToGameSubmissionId == submission.Id)
                 submission.Team.ActiveOpenToGameSubmissionId = null;
-            }
 
             var notification = await _context.Notifications
                 .FirstOrDefaultAsync(x => x.Id == notificationId && x.PlayerId == currentPlayerId.Value);
@@ -541,7 +558,7 @@ namespace MatchUp.Controllers
                     PlayerId = owner.PlayerId,
                     Type = NotificationType.OpenToGameApprovalDeclined,
                     Title = "Open To Game approval declined",
-                    Message = $"A team member declined the Open To Game request for '{submission.Team!.Name}'.",
+                    Message = $"A team member declined the Open To Game request for '{submission.Team.Name}'.",
                     TargetType = NotificationTargetType.OpenToGameSubmission,
                     TargetId = submission.Id,
                     IsRead = false
@@ -552,6 +569,236 @@ namespace MatchUp.Controllers
 
             TempData["Success"] = "Approval declined.";
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AcceptGameRequest(Guid gameRequestId, Guid notificationId)
+        {
+            var currentPlayerId = GetCurrentPlayerId();
+
+            if (!currentPlayerId.HasValue)
+                return Unauthorized();
+
+            var gameRequest = await _context.GameRequests
+                .Include(x => x.FromTeam)
+                .Include(x => x.ToTeam)
+                .FirstOrDefaultAsync(x => x.Id == gameRequestId);
+
+            if (gameRequest is null)
+            {
+                TempData["Error"] = "Game request not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (gameRequest.Status != GameRequestStatus.Pending)
+            {
+                TempData["Error"] = "This game request is no longer pending.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var isOwnerOfTargetTeam = await _context.TeamMembers
+                .AnyAsync(x =>
+                    x.TeamId == gameRequest.ToTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            if (!isOwnerOfTargetTeam)
+                return Forbid();
+
+            var existingMatch = await _context.Matches
+                .AnyAsync(x => x.CreatedFromRequestId == gameRequest.Id);
+
+            if (existingMatch)
+            {
+                TempData["Error"] = "A match has already been created from this request.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var defaultStadium = await _context.Stadiums
+                .OrderBy(x => x.CreatedAtUtc)
+                .FirstOrDefaultAsync();
+
+            var match = new Match
+            {
+                Id = Guid.NewGuid(),
+                HomeTeamId = gameRequest.FromTeamId,
+                AwayTeamId = gameRequest.ToTeamId,
+                StartAtUtc = gameRequest.StartAtUtc,
+                DurationMinutes = gameRequest.DurationMinutes,
+                Format = gameRequest.Format,
+                Status = MatchStatus.Scheduled,
+                CreatedFromRequestId = gameRequest.Id,
+                VenueStatus = defaultStadium is not null
+                    ? VenueStatus.Confirmed
+                    : VenueStatus.Unset,
+                ConfirmedVenueKind = defaultStadium is not null ? VenueKind.Stadium : VenueKind.Custom,
+                ConfirmedStadiumId = defaultStadium?.Id,
+                ConfirmedCustomVenueName = defaultStadium is null ? "Venue to be confirmed" : null,
+                ConfirmedCustomFormattedAddress = defaultStadium is null ? "To be determined" : null
+            };
+
+            _context.Matches.Add(match);
+
+            gameRequest.Status = GameRequestStatus.Accepted;
+
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(x => x.Id == notificationId && x.PlayerId == currentPlayerId.Value);
+
+            if (notification is not null && !notification.IsRead)
+            {
+                notification.IsRead = true;
+                notification.ReadAtUtc = DateTime.UtcNow;
+            }
+
+            var relatedRequestNotifications = await _context.Notifications
+                .Where(x =>
+                    x.TargetType == NotificationTargetType.GameRequest &&
+                    x.TargetId == gameRequest.Id &&
+                    !x.IsRead)
+                .ToListAsync();
+
+            foreach (var item in relatedRequestNotifications)
+            {
+                item.IsRead = true;
+                item.ReadAtUtc = DateTime.UtcNow;
+            }
+
+            await CloseTeamOpenToGameAsync(gameRequest.FromTeamId);
+            await CloseTeamOpenToGameAsync(gameRequest.ToTeamId);
+
+            var senderOwner = await _context.TeamMembers
+                .FirstOrDefaultAsync(x =>
+                    x.TeamId == gameRequest.FromTeamId &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            if (senderOwner is not null)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    PlayerId = senderOwner.PlayerId,
+                    Type = NotificationType.GameRequestAccepted,
+                    Title = "Game request accepted",
+                    Message = $"Your game request against '{gameRequest.ToTeam!.Name}' has been accepted.",
+                    TargetType = NotificationTargetType.GameRequest,
+                    TargetId = gameRequest.Id,
+                    IsRead = false
+                });
+            }
+
+            var activePlayerIds = await _context.TeamMembers
+                .Where(x =>
+                    x.IsActive &&
+                    (x.TeamId == gameRequest.FromTeamId || x.TeamId == gameRequest.ToTeamId))
+                .Select(x => x.PlayerId)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var playerId in activePlayerIds)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    PlayerId = playerId,
+                    Type = NotificationType.MatchScheduled,
+                    Title = "Match scheduled",
+                    Message = $"{gameRequest.FromTeam!.Name} vs {gameRequest.ToTeam!.Name} has been scheduled for {gameRequest.StartAtUtc:dd MMM yyyy HH:mm}.",
+                    TargetType = NotificationTargetType.Match,
+                    TargetId = match.Id,
+                    IsRead = false
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Game request accepted and match created successfully.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeclineGameRequest(Guid gameRequestId, Guid notificationId)
+        {
+            var currentPlayerId = GetCurrentPlayerId();
+
+            if (!currentPlayerId.HasValue)
+                return Unauthorized();
+
+            var gameRequest = await _context.GameRequests
+                .Include(x => x.FromTeam)
+                .Include(x => x.ToTeam)
+                .FirstOrDefaultAsync(x => x.Id == gameRequestId);
+
+            if (gameRequest is null)
+            {
+                TempData["Error"] = "Game request not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (gameRequest.Status != GameRequestStatus.Pending)
+            {
+                TempData["Error"] = "This game request is no longer pending.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var isOwnerOfTargetTeam = await _context.TeamMembers
+                .AnyAsync(x =>
+                    x.TeamId == gameRequest.ToTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            if (!isOwnerOfTargetTeam)
+                return Forbid();
+
+            gameRequest.Status = GameRequestStatus.Declined;
+
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(x => x.Id == notificationId && x.PlayerId == currentPlayerId.Value);
+
+            if (notification is not null && !notification.IsRead)
+            {
+                notification.IsRead = true;
+                notification.ReadAtUtc = DateTime.UtcNow;
+            }
+
+            var senderOwner = await _context.TeamMembers
+                .FirstOrDefaultAsync(x =>
+                    x.TeamId == gameRequest.FromTeamId &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            if (senderOwner is not null)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    PlayerId = senderOwner.PlayerId,
+                    Type = NotificationType.GameRequestDeclined,
+                    Title = "Game request declined",
+                    Message = $"Your game request against '{gameRequest.ToTeam!.Name}' has been declined.",
+                    TargetType = NotificationTargetType.GameRequest,
+                    TargetId = gameRequest.Id,
+                    IsRead = false
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Game request declined.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        private async Task CloseTeamOpenToGameAsync(Guid teamId)
+        {
+            var team = await _context.Teams
+                .FirstOrDefaultAsync(x => x.Id == teamId);
+
+            if (team is null)
+                return;
+
+            team.IsOpenToGame = false;
+            team.ActiveOpenToGameSubmissionId = null;
         }
 
         private Guid? GetCurrentPlayerId()

@@ -238,7 +238,20 @@ namespace MatchUp.Data
         {
             modelBuilder.Entity<GameRequest>(b =>
             {
-                b.Property(x => x.Message).HasMaxLength(500);
+                b.Property(x => x.Message)
+                    .HasMaxLength(500);
+
+                b.Property(x => x.DurationMinutes)
+                    .IsRequired();
+
+                b.Property(x => x.StartAtUtc)
+                    .IsRequired();
+
+                b.Property(x => x.ExpiresAtUtc)
+                    .IsRequired();
+
+                b.Property(x => x.Status)
+                    .IsRequired();
 
                 b.HasOne(x => x.FromTeam)
                     .WithMany(x => x.OutgoingGameRequests)
@@ -250,8 +263,14 @@ namespace MatchUp.Data
                     .HasForeignKey(x => x.ToTeamId)
                     .OnDelete(DeleteBehavior.Restrict);
 
+                b.HasOne(x => x.RequestedByPlayer)
+                    .WithMany()
+                    .HasForeignKey(x => x.RequestedByPlayerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 b.HasIndex(x => new { x.ToTeamId, x.Status });
                 b.HasIndex(x => new { x.FromTeamId, x.Status });
+                b.HasIndex(x => x.StartAtUtc);
             });
         }
 
