@@ -48,37 +48,17 @@ namespace MatchUp.Controllers
                 .Include(x => x.Team)
                 .ToDictionaryAsync(x => x.Id);
 
-            var configIds = notifications
-                .Where(x => x.TargetType == NotificationTargetType.OpenToGameConfig && x.TargetId.HasValue)
+            var submissionIds = notifications
+                .Where(x => x.TargetType == NotificationTargetType.OpenToGameSubmission && x.TargetId.HasValue)
                 .Select(x => x.TargetId!.Value)
                 .Distinct()
                 .ToList();
 
-            var configs = await _context.OpenToGameConfigs
+            var submissions = await _context.OpenToGameSubmissions
                 .AsNoTracking()
-                .Where(x => configIds.Contains(x.Id))
                 .Include(x => x.Team)
+                .Include(x => x.MemberApprovals)
                 .ToDictionaryAsync(x => x.Id);
-
-            var respondedConfigIds = await _context.OpenToGameMemberApprovals
-                .AsNoTracking()
-                .Where(x => configIds.Contains(x.OpenToGameConfigId) && x.PlayerId == currentPlayerId.Value)
-                .Select(x => x.OpenToGameConfigId)
-                .Distinct()
-                .ToListAsync();
-
-            var activeNonOwnerTeamIds = await _context.TeamMembers
-                .AsNoTracking()
-                .Where(x =>
-                    x.PlayerId == currentPlayerId.Value &&
-                    x.IsActive &&
-                    x.Role != TeamRole.Owner)
-                .Select(x => x.TeamId)
-                .Distinct()
-                .ToListAsync();
-
-            var respondedConfigIdSet = respondedConfigIds.ToHashSet();
-            var activeNonOwnerTeamIdSet = activeNonOwnerTeamIds.ToHashSet();
 
             var now = DateTime.UtcNow;
 
@@ -99,7 +79,10 @@ namespace MatchUp.Controllers
                         invite.Status == InviteStatus.Pending &&
                         invite.ExpiresAtUtc > now;
 
-                    configs.TryGetValue(n.TargetId ?? Guid.Empty, out var config);
+                    submissions.TryGetValue(n.TargetId ?? Guid.Empty, out var submission);
+
+                    var approvalRow = submission?.MemberApprovals
+                        .FirstOrDefault(x => x.PlayerId == currentPlayerId.Value);
 
                     return new NotificationListItemVm
                     {
@@ -118,25 +101,24 @@ namespace MatchUp.Controllers
                         ProposedSquadNumber = invite?.ProposedSquadNumber,
                         InviteExpiresAtUtc = invite?.ExpiresAtUtc,
 
-                        OpenToGameConfigId = config?.Id,
-                        OpenToGameConfigStatus = config?.Status.ToString(),
+                        OpenToGameSubmissionId = submission?.Id,
+                        OpenToGameSubmissionStatus = submission?.Status.ToString(),
 
                         CanApproveOpenToGame =
                             n.Type == NotificationType.OpenToGameApprovalRequired &&
-                            config is not null &&
-                            config.Status == OpenToGameConfigStatus.PendingApprovals &&
-                            activeNonOwnerTeamIdSet.Contains(config.TeamId) &&
-                            !respondedConfigIdSet.Contains(config.Id),
+                            submission is not null &&
+                            submission.Status == OpenToGameSubmissionStatus.PendingApprovals &&
+                            approvalRow is not null &&
+                            approvalRow.Status == ApprovalStatus.Pending,
 
                         CanDeclineOpenToGame =
                             n.Type == NotificationType.OpenToGameApprovalRequired &&
-                            config is not null &&
-                            config.Status == OpenToGameConfigStatus.PendingApprovals &&
-                            activeNonOwnerTeamIdSet.Contains(config.TeamId) &&
-                            !respondedConfigIdSet.Contains(config.Id),
+                            submission is not null &&
+                            submission.Status == OpenToGameSubmissionStatus.PendingApprovals &&
+                            approvalRow is not null &&
+                            approvalRow.Status == ApprovalStatus.Pending,
 
-                        TeamName = invite?.Team?.Name ?? config?.Team?.Name,
-
+                        TeamName = invite?.Team?.Name ?? submission?.Team?.Name,
                         IsExpired = invite is not null && invite.ExpiresAtUtc <= now
                     };
                 }).ToList()
@@ -378,60 +360,37 @@ namespace MatchUp.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ApproveOpenToGame(Guid configId, Guid notificationId)
+        public async Task<IActionResult> ApproveOpenToGame(Guid submissionId, Guid notificationId)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
             if (!currentPlayerId.HasValue)
                 return Unauthorized();
 
-            var config = await _context.OpenToGameConfigs
+            var submission = await _context.OpenToGameSubmissions
                 .Include(x => x.Team)
                 .Include(x => x.MemberApprovals)
-                .FirstOrDefaultAsync(x => x.Id == configId);
+                .FirstOrDefaultAsync(x => x.Id == submissionId);
 
-            if (config is null)
+            if (submission is null)
             {
-                TempData["Error"] = "Open To Game configuration not found.";
+                TempData["Error"] = "Open To Game submission not found.";
                 return RedirectToAction(nameof(Index));
             }
 
-            if (config.Status != OpenToGameConfigStatus.PendingApprovals)
+            var approval = submission.MemberApprovals
+                .FirstOrDefault(x => x.PlayerId == currentPlayerId.Value);
+
+            if (submission.Status != OpenToGameSubmissionStatus.PendingApprovals ||
+                approval is null ||
+                approval.Status != ApprovalStatus.Pending)
             {
-                TempData["Error"] = "This configuration is no longer waiting for approval.";
+                TempData["Error"] = "This approval request is no longer available.";
                 return RedirectToAction(nameof(Index));
             }
 
-            var isActiveNonOwnerMember = await _context.TeamMembers
-                .AnyAsync(x =>
-                    x.TeamId == config.TeamId &&
-                    x.PlayerId == currentPlayerId.Value &&
-                    x.IsActive &&
-                    x.Role != TeamRole.Owner);
-
-            if (!isActiveNonOwnerMember)
-                return Forbid();
-
-            var alreadyResponded = await _context.OpenToGameMemberApprovals
-                .AnyAsync(x =>
-                    x.OpenToGameConfigId == configId &&
-                    x.PlayerId == currentPlayerId.Value);
-
-            if (alreadyResponded)
-            {
-                TempData["Error"] = "You have already responded to this approval request.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var approval = new OpenToGameMemberApproval
-            {
-                OpenToGameConfigId = configId,
-                PlayerId = currentPlayerId.Value,
-                IsApproved = true,
-                RespondedAtUtc = DateTime.UtcNow
-            };
-
-            _context.OpenToGameMemberApprovals.Add(approval);
+            approval.Status = ApprovalStatus.Approved;
+            approval.RespondedAtUtc = DateTime.UtcNow;
 
             var notification = await _context.Notifications
                 .FirstOrDefaultAsync(x => x.Id == notificationId && x.PlayerId == currentPlayerId.Value);
@@ -442,51 +401,43 @@ namespace MatchUp.Controllers
                 notification.ReadAtUtc = DateTime.UtcNow;
             }
 
-            var owner = await _context.TeamMembers
-                .FirstOrDefaultAsync(x =>
-                    x.TeamId == config.TeamId &&
-                    x.Role == TeamRole.Owner &&
-                    x.IsActive);
-
-            if (owner is not null && owner.PlayerId != currentPlayerId.Value)
+            if (submission.MemberApprovals.All(x => x.Status == ApprovalStatus.Approved))
             {
-                _context.Notifications.Add(new Notification
+                if (submission.Team!.ActiveOpenToGameSubmissionId.HasValue &&
+                    submission.Team.ActiveOpenToGameSubmissionId.Value != submission.Id)
                 {
-                    PlayerId = owner.PlayerId,
-                    Type = NotificationType.OpenToGameApprovalAccepted,
-                    Title = "Open To Game approval accepted",
-                    Message = $"A team member accepted the Open To Game request for '{config.Team!.Name}'.",
-                    TargetType = NotificationTargetType.OpenToGameConfig,
-                    TargetId = config.Id,
-                    IsRead = false
-                });
-            }
+                    var oldActiveSubmission = await _context.OpenToGameSubmissions
+                        .FirstOrDefaultAsync(x => x.Id == submission.Team.ActiveOpenToGameSubmissionId.Value);
 
-            await _context.SaveChangesAsync();
+                    if (oldActiveSubmission is not null)
+                    {
+                        oldActiveSubmission.Status = OpenToGameSubmissionStatus.Superseded;
+                        oldActiveSubmission.ResolvedAtUtc = DateTime.UtcNow;
+                    }
+                }
 
-            var requiredApproverIds = await _context.TeamMembers
-                .Where(x =>
-                    x.TeamId == config.TeamId &&
-                    x.IsActive &&
-                    x.Role != TeamRole.Owner)
-                .Select(x => x.PlayerId)
-                .ToListAsync();
+                submission.Status = OpenToGameSubmissionStatus.Active;
+                submission.ResolvedAtUtc = DateTime.UtcNow;
 
-            var approvedIds = await _context.OpenToGameMemberApprovals
-                .Where(x =>
-                    x.OpenToGameConfigId == configId &&
-                    x.IsApproved)
-                .Select(x => x.PlayerId)
-                .ToListAsync();
+                submission.Team.IsOpenToGame = true;
+                submission.Team.ActiveOpenToGameSubmissionId = submission.Id;
 
-            if (requiredApproverIds.All(x => approvedIds.Contains(x)))
-            {
-                config.Status = OpenToGameConfigStatus.Active;
-                config.ActivatedAtUtc = DateTime.UtcNow;
-                config.Team!.IsOpenToGame = true;
+                var pendingNotifications = await _context.Notifications
+                    .Where(x =>
+                        x.Type == NotificationType.OpenToGameApprovalRequired &&
+                        x.TargetType == NotificationTargetType.OpenToGameSubmission &&
+                        x.TargetId == submission.Id &&
+                        !x.IsRead)
+                    .ToListAsync();
+
+                foreach (var item in pendingNotifications)
+                {
+                    item.IsRead = true;
+                    item.ReadAtUtc = DateTime.UtcNow;
+                }
 
                 var activePlayerIds = await _context.TeamMembers
-                    .Where(x => x.TeamId == config.TeamId && x.IsActive)
+                    .Where(x => x.TeamId == submission.TeamId && x.IsActive)
                     .Select(x => x.PlayerId)
                     .ToListAsync();
 
@@ -497,15 +448,15 @@ namespace MatchUp.Controllers
                         PlayerId = playerId,
                         Type = NotificationType.OpenToGameActivated,
                         Title = "Open To Game activated",
-                        Message = $"{config.Team.Name} is now open to game.",
-                        TargetType = NotificationTargetType.OpenToGameConfig,
-                        TargetId = config.Id,
+                        Message = $"{submission.Team.Name} is now open to game.",
+                        TargetType = NotificationTargetType.OpenToGameSubmission,
+                        TargetId = submission.Id,
                         IsRead = false
                     });
                 }
-
-                await _context.SaveChangesAsync();
             }
+
+            await _context.SaveChangesAsync();
 
             TempData["Success"] = "Approval accepted.";
             return RedirectToAction(nameof(Index));
@@ -513,63 +464,46 @@ namespace MatchUp.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeclineOpenToGame(Guid configId, Guid notificationId)
+        public async Task<IActionResult> DeclineOpenToGame(Guid submissionId, Guid notificationId)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
             if (!currentPlayerId.HasValue)
                 return Unauthorized();
 
-            var config = await _context.OpenToGameConfigs
+            var submission = await _context.OpenToGameSubmissions
                 .Include(x => x.Team)
-                .FirstOrDefaultAsync(x => x.Id == configId);
+                .Include(x => x.MemberApprovals)
+                .FirstOrDefaultAsync(x => x.Id == submissionId);
 
-            if (config is null)
+            if (submission is null)
             {
-                TempData["Error"] = "Open To Game configuration not found.";
+                TempData["Error"] = "Open To Game submission not found.";
                 return RedirectToAction(nameof(Index));
             }
 
-            if (config.Status != OpenToGameConfigStatus.PendingApprovals)
+            var approval = submission.MemberApprovals
+                .FirstOrDefault(x => x.PlayerId == currentPlayerId.Value);
+
+            if (submission.Status != OpenToGameSubmissionStatus.PendingApprovals ||
+                approval is null ||
+                approval.Status != ApprovalStatus.Pending)
             {
-                TempData["Error"] = "This configuration is no longer waiting for approval.";
+                TempData["Error"] = "This approval request is no longer available.";
                 return RedirectToAction(nameof(Index));
             }
 
-            var isActiveNonOwnerMember = await _context.TeamMembers
-                .AnyAsync(x =>
-                    x.TeamId == config.TeamId &&
-                    x.PlayerId == currentPlayerId.Value &&
-                    x.IsActive &&
-                    x.Role != TeamRole.Owner);
+            approval.Status = ApprovalStatus.Declined;
+            approval.RespondedAtUtc = DateTime.UtcNow;
 
-            if (!isActiveNonOwnerMember)
-                return Forbid();
+            submission.Status = OpenToGameSubmissionStatus.Cancelled;
+            submission.ResolvedAtUtc = DateTime.UtcNow;
 
-            var alreadyResponded = await _context.OpenToGameMemberApprovals
-                .AnyAsync(x =>
-                    x.OpenToGameConfigId == configId &&
-                    x.PlayerId == currentPlayerId.Value);
-
-            if (alreadyResponded)
+            if (submission.Team!.ActiveOpenToGameSubmissionId == submission.Id)
             {
-                TempData["Error"] = "You have already responded to this approval request.";
-                return RedirectToAction(nameof(Index));
+                submission.Team.IsOpenToGame = false;
+                submission.Team.ActiveOpenToGameSubmissionId = null;
             }
-
-            var approval = new OpenToGameMemberApproval
-            {
-                OpenToGameConfigId = configId,
-                PlayerId = currentPlayerId.Value,
-                IsApproved = false,
-                RespondedAtUtc = DateTime.UtcNow
-            };
-
-            _context.OpenToGameMemberApprovals.Add(approval);
-
-            config.Status = OpenToGameConfigStatus.Cancelled;
-            config.ActivatedAtUtc = null;
-            config.Team!.IsOpenToGame = false;
 
             var notification = await _context.Notifications
                 .FirstOrDefaultAsync(x => x.Id == notificationId && x.PlayerId == currentPlayerId.Value);
@@ -580,15 +514,15 @@ namespace MatchUp.Controllers
                 notification.ReadAtUtc = DateTime.UtcNow;
             }
 
-            var otherPendingNotifications = await _context.Notifications
+            var otherNotifications = await _context.Notifications
                 .Where(x =>
                     x.Type == NotificationType.OpenToGameApprovalRequired &&
-                    x.TargetType == NotificationTargetType.OpenToGameConfig &&
-                    x.TargetId == config.Id &&
+                    x.TargetType == NotificationTargetType.OpenToGameSubmission &&
+                    x.TargetId == submission.Id &&
                     !x.IsRead)
                 .ToListAsync();
 
-            foreach (var item in otherPendingNotifications)
+            foreach (var item in otherNotifications)
             {
                 item.IsRead = true;
                 item.ReadAtUtc = DateTime.UtcNow;
@@ -596,7 +530,7 @@ namespace MatchUp.Controllers
 
             var owner = await _context.TeamMembers
                 .FirstOrDefaultAsync(x =>
-                    x.TeamId == config.TeamId &&
+                    x.TeamId == submission.TeamId &&
                     x.Role == TeamRole.Owner &&
                     x.IsActive);
 
@@ -607,9 +541,9 @@ namespace MatchUp.Controllers
                     PlayerId = owner.PlayerId,
                     Type = NotificationType.OpenToGameApprovalDeclined,
                     Title = "Open To Game approval declined",
-                    Message = $"A team member declined the Open To Game request for '{config.Team.Name}'.",
-                    TargetType = NotificationTargetType.OpenToGameConfig,
-                    TargetId = config.Id,
+                    Message = $"A team member declined the Open To Game request for '{submission.Team!.Name}'.",
+                    TargetType = NotificationTargetType.OpenToGameSubmission,
+                    TargetId = submission.Id,
                     IsRead = false
                 });
             }

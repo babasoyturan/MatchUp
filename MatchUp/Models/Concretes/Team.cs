@@ -9,9 +9,12 @@ namespace MatchUp.Models.Concretes
         public string? ImageUrl { get; set; }
         public string? Description { get; set; }
 
-        public OpenToGameConfig? OpenToGameConfig { get; set; }
-
         public bool IsOpenToGame { get; set; }
+
+        public Guid? ActiveOpenToGameSubmissionId { get; set; }
+        public OpenToGameSubmission? ActiveOpenToGameSubmission { get; set; }
+
+        public List<OpenToGameSubmission> OpenToGameSubmissions { get; set; } = new();
 
         public ICollection<TeamMember> Members { get; set; } = new List<TeamMember>();
 

@@ -25,8 +25,8 @@
         public bool CanApproveOpenToGame { get; set; }
         public bool CanDeclineOpenToGame { get; set; }
 
-        public Guid? OpenToGameConfigId { get; set; }
-        public string? OpenToGameConfigStatus { get; set; }
+        public Guid? OpenToGameSubmissionId { get; set; }
+        public string? OpenToGameSubmissionStatus { get; set; }
 
         public bool IsExpired { get; set; }
     }

@@ -1,17 +1,17 @@
 ﻿using MatchUp.Models.Abstracts;
-using System.Numerics;
+using MatchUp.Utilities.Enums;
 
 namespace MatchUp.Models.Concretes
 {
-    public class OpenToGameMemberApproval : IEntityBase
+    public class OpenToGameMemberApproval : EntityBase
     {
-        public Guid OpenToGameConfigId { get; set; }
-        public OpenToGameConfig? Config { get; set; }
+        public Guid OpenToGameSubmissionId { get; set; }
+        public OpenToGameSubmission? OpenToGameSubmission { get; set; }
 
         public Guid PlayerId { get; set; }
         public Player? Player { get; set; }
 
-        public bool IsApproved { get; set; }
-        public DateTime RespondedAtUtc { get; set; } = DateTime.UtcNow;
+        public ApprovalStatus Status { get; set; } = ApprovalStatus.Pending;
+        public DateTime? RespondedAtUtc { get; set; }
     }
 }

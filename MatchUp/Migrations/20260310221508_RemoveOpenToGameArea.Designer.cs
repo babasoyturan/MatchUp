@@ -4,6 +4,7 @@ using MatchUp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MatchUp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260310221508_RemoveOpenToGameArea")]
+    partial class RemoveOpenToGameArea
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -310,48 +313,14 @@ namespace MatchUp.Migrations
                     b.ToTable("Notifications");
                 });
 
-            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameMemberApproval", b =>
+            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameConfig", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime>("CreatedAtUtc")
+                    b.Property<DateTime?>("ActivatedAtUtc")
                         .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("OpenToGameSubmissionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PlayerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("RespondedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PlayerId");
-
-                    b.HasIndex("OpenToGameSubmissionId", "PlayerId")
-                        .IsUnique();
-
-                    b.ToTable("OpenToGameMemberApprovals");
-                });
-
-            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameSubmission", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
@@ -366,31 +335,45 @@ namespace MatchUp.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<DateTime?>("ResolvedAtUtc")
-                        .HasColumnType("datetime2");
-
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("SubmittedAtUtc")
+                    b.Property<DateTime?>("SubmittedAtUtc")
                         .HasColumnType("datetime2");
-
-                    b.Property<Guid>("SubmittedByPlayerId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("TeamId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SubmittedByPlayerId");
+                    b.HasIndex("TeamId")
+                        .IsUnique();
 
-                    b.HasIndex("TeamId");
-
-                    b.ToTable("OpenToGameSubmissions");
+                    b.ToTable("OpenToGameConfigs");
                 });
 
-            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameSubmissionTimeWindow", b =>
+            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameMemberApproval", b =>
+                {
+                    b.Property<Guid>("OpenToGameConfigId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("RespondedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("OpenToGameConfigId", "PlayerId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("OpenToGameMemberApprovals");
+                });
+
+            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameTimeWindow", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -414,7 +397,7 @@ namespace MatchUp.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<Guid>("OpenToGameSubmissionId")
+                    b.Property<Guid>("OpenToGameConfigId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("StartMinute")
@@ -422,10 +405,12 @@ namespace MatchUp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OpenToGameSubmissionId", "Day")
-                        .IsUnique();
+                    b.HasIndex("OpenToGameConfigId");
 
-                    b.ToTable("OpenToGameSubmissionTimeWindows");
+                    b.ToTable("OpenToGameTimeWindows", t =>
+                        {
+                            t.HasCheckConstraint("CK_OpenToGameTimeWindow_Minutes", "[StartMinute] >= 0 AND [StartMinute] <= 1439 AND [EndMinute] >= 0 AND [EndMinute] <= 1439 AND [StartMinute] < [EndMinute]");
+                        });
                 });
 
             modelBuilder.Entity("MatchUp.Models.Concretes.Player", b =>
@@ -599,9 +584,6 @@ namespace MatchUp.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("ActiveOpenToGameSubmissionId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -630,8 +612,6 @@ namespace MatchUp.Migrations
                         .HasColumnType("nvarchar(150)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ActiveOpenToGameSubmissionId");
 
                     b.ToTable("Teams");
                 });
@@ -950,63 +930,45 @@ namespace MatchUp.Migrations
                     b.Navigation("Player");
                 });
 
+            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameConfig", b =>
+                {
+                    b.HasOne("MatchUp.Models.Concretes.Team", "Team")
+                        .WithOne("OpenToGameConfig")
+                        .HasForeignKey("MatchUp.Models.Concretes.OpenToGameConfig", "TeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Team");
+                });
+
             modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameMemberApproval", b =>
                 {
-                    b.HasOne("MatchUp.Models.Concretes.OpenToGameSubmission", "OpenToGameSubmission")
+                    b.HasOne("MatchUp.Models.Concretes.OpenToGameConfig", "Config")
                         .WithMany("MemberApprovals")
-                        .HasForeignKey("OpenToGameSubmissionId")
+                        .HasForeignKey("OpenToGameConfigId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("MatchUp.Models.Concretes.Player", "Player")
                         .WithMany("OpenToGameApprovals")
                         .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("OpenToGameSubmission");
+                    b.Navigation("Config");
 
                     b.Navigation("Player");
                 });
 
-            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameSubmission", b =>
+            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameTimeWindow", b =>
                 {
-                    b.HasOne("MatchUp.Models.Concretes.Player", "SubmittedByPlayer")
-                        .WithMany()
-                        .HasForeignKey("SubmittedByPlayerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("MatchUp.Models.Concretes.Team", "Team")
-                        .WithMany("OpenToGameSubmissions")
-                        .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("SubmittedByPlayer");
-
-                    b.Navigation("Team");
-                });
-
-            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameSubmissionTimeWindow", b =>
-                {
-                    b.HasOne("MatchUp.Models.Concretes.OpenToGameSubmission", "OpenToGameSubmission")
+                    b.HasOne("MatchUp.Models.Concretes.OpenToGameConfig", "Config")
                         .WithMany("TimeWindows")
-                        .HasForeignKey("OpenToGameSubmissionId")
+                        .HasForeignKey("OpenToGameConfigId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("OpenToGameSubmission");
-                });
-
-            modelBuilder.Entity("MatchUp.Models.Concretes.Team", b =>
-                {
-                    b.HasOne("MatchUp.Models.Concretes.OpenToGameSubmission", "ActiveOpenToGameSubmission")
-                        .WithMany()
-                        .HasForeignKey("ActiveOpenToGameSubmissionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ActiveOpenToGameSubmission");
+                    b.Navigation("Config");
                 });
 
             modelBuilder.Entity("MatchUp.Models.Concretes.TeamInvite", b =>
@@ -1105,7 +1067,7 @@ namespace MatchUp.Migrations
                     b.Navigation("VenueProposals");
                 });
 
-            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameSubmission", b =>
+            modelBuilder.Entity("MatchUp.Models.Concretes.OpenToGameConfig", b =>
                 {
                     b.Navigation("MemberApprovals");
 
@@ -1142,7 +1104,7 @@ namespace MatchUp.Migrations
 
                     b.Navigation("Members");
 
-                    b.Navigation("OpenToGameSubmissions");
+                    b.Navigation("OpenToGameConfig");
 
                     b.Navigation("OutgoingGameRequests");
                 });

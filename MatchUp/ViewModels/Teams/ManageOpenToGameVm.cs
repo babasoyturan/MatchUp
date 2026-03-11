@@ -1,4 +1,5 @@
 ﻿using MatchUp.Utilities.Enums;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using System.ComponentModel.DataAnnotations;
 
 namespace MatchUp.ViewModels.Teams
@@ -8,22 +9,21 @@ namespace MatchUp.ViewModels.Teams
         [Required]
         public Guid TeamId { get; set; }
 
-        public string TeamName { get; set; } = default!;
+        [ValidateNever]
+        public string? TeamName { get; set; }
 
+        [ValidateNever]
         public bool IsCurrentlyOpenToGame { get; set; }
-        public string StatusText { get; set; } = default!;
+
+        [ValidateNever]
+        public string? StatusText { get; set; }
 
         [Required]
         public List<GameFormat> SelectedFormats { get; set; } = new();
 
-        [Required]
-        [StringLength(100)]
-        public string CityName { get; set; } = default!;
-
-        [StringLength(100)]
-        public string? RegionName { get; set; }
-
         public List<OpenToGameDayWindowVm> DayWindows { get; set; } = new();
+
+        [ValidateNever]
         public List<OpenToGameApprovalMemberVm> ApprovalStatuses { get; set; } = new();
     }
 }

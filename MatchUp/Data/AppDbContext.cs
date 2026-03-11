@@ -18,9 +18,8 @@ namespace MatchUp.Data
         public DbSet<TeamMember> TeamMembers { get; set; }
         public DbSet<TeamInvite> TeamInvites { get; set; }
 
-        public DbSet<OpenToGameConfig> OpenToGameConfigs { get; set; }
-        public DbSet<OpenToGameArea> OpenToGameAreas { get; set; }
-        public DbSet<OpenToGameTimeWindow> OpenToGameTimeWindows { get; set; }
+        public DbSet<OpenToGameSubmission> OpenToGameSubmissions { get; set; }
+        public DbSet<OpenToGameSubmissionTimeWindow> OpenToGameSubmissionTimeWindows { get; set; }
         public DbSet<OpenToGameMemberApproval> OpenToGameMemberApprovals { get; set; }
 
         public DbSet<GameRequest> GameRequests { get; set; }
@@ -98,11 +97,6 @@ namespace MatchUp.Data
                 b.Property(x => x.Name).HasMaxLength(150).IsRequired();
                 b.Property(x => x.Description).HasMaxLength(1000);
 
-                b.HasOne(x => x.OpenToGameConfig)
-                    .WithOne(x => x.Team)
-                    .HasForeignKey<OpenToGameConfig>(x => x.TeamId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
                 b.HasMany(x => x.Members)
                     .WithOne(x => x.Team)
                     .HasForeignKey(x => x.TeamId)
@@ -158,9 +152,28 @@ namespace MatchUp.Data
 
         private static void ConfigureOpenToGame(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<OpenToGameConfig>(b =>
+            modelBuilder.Entity<Team>(b =>
             {
-                b.HasIndex(x => x.TeamId).IsUnique();
+                b.HasOne(x => x.ActiveOpenToGameSubmission)
+                    .WithMany()
+                    .HasForeignKey(x => x.ActiveOpenToGameSubmissionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<OpenToGameSubmission>(b =>
+            {
+                b.HasOne(x => x.Team)
+                    .WithMany(x => x.OpenToGameSubmissions)
+                    .HasForeignKey(x => x.TeamId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(x => x.SubmittedByPlayer)
+                    .WithMany()
+                    .HasForeignKey(x => x.SubmittedByPlayerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                b.Property(x => x.Status)
+                    .IsRequired();
 
                 b.Property(x => x.Formats)
                     .HasConversion(
@@ -172,47 +185,31 @@ namespace MatchUp.Data
                         (c1, c2) => c1!.SequenceEqual(c2!),
                         c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                         c => c.ToList()));
-
-                b.HasMany(x => x.TimeWindows)
-                    .WithOne(x => x.Config)
-                    .HasForeignKey(x => x.OpenToGameConfigId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                b.HasMany(x => x.Areas)
-                    .WithOne(x => x.Config)
-                    .HasForeignKey(x => x.OpenToGameConfigId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                b.HasMany(x => x.MemberApprovals)
-                    .WithOne(x => x.Config)
-                    .HasForeignKey(x => x.OpenToGameConfigId)
-                    .OnDelete(DeleteBehavior.Cascade);
             });
 
-            modelBuilder.Entity<OpenToGameArea>(b =>
+            modelBuilder.Entity<OpenToGameSubmissionTimeWindow>(b =>
             {
-                b.Property(x => x.CityName).HasMaxLength(100).IsRequired();
-                b.Property(x => x.RegionName).HasMaxLength(100);
-            });
+                b.HasOne(x => x.OpenToGameSubmission)
+                    .WithMany(x => x.TimeWindows)
+                    .HasForeignKey(x => x.OpenToGameSubmissionId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<OpenToGameTimeWindow>(b =>
-            {
-                b.HasCheckConstraint("CK_OpenToGameTimeWindow_Minutes", "[StartMinute] >= 0 AND [StartMinute] <= 1439 AND [EndMinute] >= 0 AND [EndMinute] <= 1439 AND [StartMinute] < [EndMinute]");
+                b.HasIndex(x => new { x.OpenToGameSubmissionId, x.Day })
+                    .IsUnique();
             });
 
             modelBuilder.Entity<OpenToGameMemberApproval>(b =>
             {
-                b.HasKey(x => new { x.OpenToGameConfigId, x.PlayerId });
-
-                b.HasOne(x => x.Config)
+                b.HasOne(x => x.OpenToGameSubmission)
                     .WithMany(x => x.MemberApprovals)
-                    .HasForeignKey(x => x.OpenToGameConfigId)
+                    .HasForeignKey(x => x.OpenToGameSubmissionId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                b.HasOne(x => x.Player)
-                    .WithMany(x => x.OpenToGameApprovals)
-                    .HasForeignKey(x => x.PlayerId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                b.Property(x => x.Status)
+                    .IsRequired();
+
+                b.HasIndex(x => new { x.OpenToGameSubmissionId, x.PlayerId })
+                    .IsUnique();
             });
         }
 
