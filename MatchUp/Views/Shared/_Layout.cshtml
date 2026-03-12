@@ -1,560 +1,447 @@
-﻿<!DOCTYPE html>
+﻿@using System.Security.Claims
+
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+    var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+
+    var displayName =
+        User.FindFirst("full_name")?.Value ??
+        User.FindFirst(ClaimTypes.GivenName)?.Value ??
+        User.Identity?.Name ??
+        "Account";
+}
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Basic -->
     <meta charset="utf-8">
     <title>@ViewData["Title"] - MatchUp</title>
-
-    <!-- Mobile Metas -->
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <!-- Theme CSS -->
+
     <link href="~/assets/css/main.css" rel="stylesheet" media="screen">
 
-    <!-- Favicons -->
     <link rel="shortcut icon" href="~/img/icons/favicon.ico">
     <link rel="apple-touch-icon" href="~/img/icons/apple-touch-icon.png">
 </head>
 
 <body>
-
-    <!-- layout-->
     <div id="layout">
-        <!-- Header-->
         <header class="header-2">
-            <!-- End headerbox-->
             <div class="headerbox">
                 <div class="container">
                     <div class="row justify-content-between align-items-center">
-                        <!-- Logo-->
                         <div class="col col-xl-2">
                             <div class="logo">
-                                <a href="index.html" title="Return Home">
-                                    <img src="~/img/logo.png" alt="Logo" class="logo_img">
+                                <a asp-controller="Home" asp-action="Index" title="Return Home">
+                                    <img src="~/img/logo.png" alt="MatchUp Logo" class="logo_img">
                                 </a>
                             </div>
                         </div>
-                        <!-- End Logo-->
-                        <!-- Adds nav-->
+
                         <div class="col col-xl-10">
-                            <!-- mainmenu-->
                             <nav class="mainmenu">
                                 <div class="container">
-                                    <!-- Menu-->
                                     <ul class="sf-menu" id="menu">
-                                        <li class="current">
-                                            <a href="index.html">Home</a>
+                                        <li class="@(currentController == "Home" ? "current" : "")">
+                                            <a asp-controller="Home" asp-action="Index">Home</a>
                                             <ul class="sub-current">
                                                 <li>
-                                                    <a href="index.html">Home 1</a>
+                                                    <a asp-controller="Home" asp-action="Index">Platform Overview</a>
                                                 </li>
                                                 <li>
-                                                    <a href="index-2.html">Home 2</a>
+                                                    <a asp-controller="Home" asp-action="Index" asp-fragment="recent-results">Recent Results</a>
                                                 </li>
                                                 <li>
-                                                    <a href="index-3.html">Home 3</a>
+                                                    <a asp-controller="Home" asp-action="Index" asp-fragment="featured-match">Featured Match</a>
                                                 </li>
                                                 <li>
-                                                    <a href="index-4.html">Home 4</a>
-                                                </li>
-                                                <li>
-                                                    <a href="index-5.html">Home 5</a>
-                                                </li>
-                                                <li>
-                                                    <a href="index-6.html">Home 6</a>
+                                                    <a asp-controller="Home" asp-action="Index" asp-fragment="open-home-teams">Open To Game Teams</a>
                                                 </li>
                                             </ul>
                                         </li>
 
                                         <li>
-                                            <a href="#">World Cup</a>
+                                            <a href="#">Platform</a>
                                             <div class="sf-mega">
                                                 <div class="row">
                                                     <div class="col-md-3">
-                                                        <h5><i class="fa fa-trophy" aria-hidden="true"></i>World Cup</h5>
+                                                        <h5><i class="fa fa-futbol-o" aria-hidden="true"></i> Match Flow</h5>
                                                         <ul>
-                                                            <li><a href="table-point.html">Point Table</a></li>
-                                                            <li><a href="fixtures.html">Fixtures</a></li>
-                                                            <li><a href="groups.html">Groups</a></li>
-                                                            <li><a href="news-left-sidebar.html">News</a></li>
-                                                            <li><a href="contact.html">Contact Us</a></li>
+                                                            <li>
+                                                                <a asp-controller="Home" asp-action="Index" asp-fragment="featured-match">Featured Match</a>
+                                                            </li>
+                                                            <li>
+                                                                <a asp-controller="Home" asp-action="Index" asp-fragment="recent-results">Recent Results</a>
+                                                            </li>
+                                                            <li>
+                                                                <a asp-controller="Home" asp-action="Index" asp-fragment="open-home-teams">Find Open Teams</a>
+                                                            </li>
+                                                            <li>
+                                                                <a asp-controller="Notifications" asp-action="Index">Notifications</a>
+                                                            </li>
                                                         </ul>
                                                     </div>
 
                                                     <div class="col-md-3">
-                                                        <h5><i class="fa fa-users" aria-hidden="true"></i> Teams List</h5>
+                                                        <h5><i class="fa fa-users" aria-hidden="true"></i> Teams</h5>
                                                         <div class="img-hover">
-                                                            <img src="~/img/blog/1.jpg" alt="" class="img-responsive">
-                                                            <div class="overlay"><a href="teams.html">+</a></div>
+                                                            <img src="~/img/blog/1.jpg" alt="Teams" class="img-responsive">
+                                                            <div class="overlay">
+                                                                <a asp-controller="Teams" asp-action="Index">+</a>
+                                                            </div>
                                                         </div>
                                                     </div>
 
                                                     <div class="col-md-3">
-                                                        <h5><i class="fa fa-futbol-o" aria-hidden="true"></i> Players List</h5>
+                                                        <h5><i class="fa fa-user" aria-hidden="true"></i> Players</h5>
                                                         <div class="img-hover">
-                                                            <img src="~/img/blog/2.jpg" alt="" class="img-responsive">
-                                                            <div class="overlay"><a href="players.html">+</a></div>
+                                                            <img src="~/img/blog/2.jpg" alt="Players" class="img-responsive">
+                                                            <div class="overlay">
+                                                                <a asp-controller="Players" asp-action="Index">+</a>
+                                                            </div>
                                                         </div>
                                                     </div>
 
                                                     <div class="col-md-3">
-                                                        <h5><i class="fa fa-gamepad" aria-hidden="true"></i> Results Info</h5>
+                                                        <h5><i class="fa fa-bell" aria-hidden="true"></i> Activity</h5>
                                                         <div class="img-hover">
-                                                            <img src="~/img/blog/3.jpg" alt="" class="img-responsive">
-                                                            <div class="overlay"><a href="results.html">+</a></div>
+                                                            <img src="~/img/blog/3.jpg" alt="Notifications" class="img-responsive">
+                                                            <div class="overlay">
+                                                                <a asp-controller="Notifications" asp-action="Index">+</a>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </li>
 
-                                        <li class="current">
-                                            <a href="teams.html">Teams</a>
+                                        <li class="@(currentController == "Teams" ? "current" : "")">
+                                            <a asp-controller="Teams" asp-action="Index">Teams</a>
                                             <ul class="sub-current">
                                                 <li>
-                                                    <a href="teams.html">Teams List</a>
+                                                    <a asp-controller="Teams" asp-action="Index">Teams List</a>
                                                 </li>
-                                                <li>
-                                                    <a href="single-team.html">Single Team</a>
-                                                </li>
+                                                @if (User.Identity?.IsAuthenticated == true)
+                                                {
+                                                    <li>
+                                                        <a asp-controller="Teams" asp-action="Mine">My Teams</a>
+                                                    </li>
+                                                    <li>
+                                                        <a asp-controller="Teams" asp-action="Create">Create Team</a>
+                                                    </li>
+                                                }
                                             </ul>
                                         </li>
 
-                                        <li class="current">
-                                            <a href="players.html">Players</a>
+                                        <li class="@(currentController == "Players" ? "current" : "")">
+                                            <a asp-controller="Players" asp-action="Index">Players</a>
                                             <ul class="sub-current">
                                                 <li>
-                                                    <a href="players.html">Players List</a>
-                                                </li>
-                                                <li>
-                                                    <a href="single-player.html">Single Player</a>
-                                                </li>
-                                            </ul>
-                                        </li>
-
-                                        <li>
-                                            <a href="fixtures.html">Fixtures</a>
-                                        </li>
-
-                                        <li class="current">
-                                            <a href="results.html">Results</a>
-                                            <ul class="sub-current">
-                                                <li>
-                                                    <a href="results.html">Results List</a>
-                                                </li>
-                                                <li>
-                                                    <a href="single-result.html">Single Result</a>
+                                                    <a asp-controller="Players" asp-action="Index">Players List</a>
                                                 </li>
                                             </ul>
                                         </li>
 
                                         <li>
-                                            <a href="table-point.html">Point Table</a>
+                                            <a asp-controller="Home" asp-action="Index" asp-fragment="featured-match">Fixtures</a>
                                         </li>
 
                                         <li>
-                                            <a href="groups.html">Groups</a>
+                                            <a asp-controller="Home" asp-action="Index" asp-fragment="recent-results">Results</a>
                                         </li>
 
                                         <li>
-                                            <a href="#">Features</a>
-                                            <div class="sf-mega">
-                                                <div class="row">
-                                                    <div class="col-md-3">
-                                                        <h5>Features</h5>
-                                                        <ul>
-                                                            <li><a href="page-full-width.html">Full Width</a></li>
-                                                            <li><a href="page-left-sidebar.html">Left Sidebar</a></li>
-                                                            <li><a href="page-right-sidebar.html">Right Sidebar</a></li>
-                                                            <li><a href="page-404.html">404 Page</a></li>
-                                                            <li><a href="page-faq.html">FAQ</a></li>
-                                                            <li><a href="sitemap.html">Sitemap</a></li>
-                                                            <li><a href="page-pricing.html">Pricing</a></li>
-                                                            <li><a href="page-register.html">Register Form</a></li>
-                                                        </ul>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <h5>Headers & Footers</h5>
-                                                        <ul>
-                                                            <li><a href="feature-header-footer-1.html">Header Version 1</a></li>
-                                                            <li><a href="feature-header-footer-2.html">Header Version 2</a></li>
-                                                            <li><a href="feature-header-footer-3.html">Header Version 3</a></li>
-                                                            <li><a href="index-5.html">Header Version 4</a></li>
-                                                            <li><a href="feature-header-footer-1.html#footer">Footer Version 1</a></li>
-                                                            <li><a href="feature-header-footer-2.html#footer">Footer Version 2</a></li>
-                                                            <li><a href="feature-header-footer-3.html#footer">Footer Version 3</a></li>
-                                                        </ul>
-                                                    </div>
-
-                                                    <div class="col-md-3">
-                                                        <h5>Pages</h5>
-                                                        <ul>
-                                                            <li><a href="page-about.html">About Us</a></li>
-                                                            <li><a href="single-player.html">About Me</a></li>
-                                                            <li><a href="services.html">Services</a></li>
-                                                            <li><a href="single-team.html">Club Info</a></li>
-                                                            <li><a href="single-result.html">Match Result</a></li>
-                                                            <li><a href="table-point.html">Positions</a></li>
-                                                        </ul>
-                                                    </div>
-
-                                                    <div class="col-md-3">
-                                                        <h5>News</h5>
-                                                        <ul>
-                                                            <li>
-                                                                <a href="news-left-sidebar.html">News Lef Sidebar</a>
-                                                            </li>
-                                                            <li>
-                                                                <a href="news-right-sidebar.html">News Right Sidebar</a>
-                                                            </li>
-                                                            <li>
-                                                                <a href="news-no-sidebar.html">News No Sidebar</a>
-                                                            </li>
-                                                            <li>
-                                                                <a href="single-news.html">Single News</a>
-                                                            </li>
-                                                        </ul>
-                                                    </div>
-                                                    <i class="fa fa-trophy big-icon" aria-hidden="true"></i>
-                                                </div>
-                                            </div>
+                                            <a asp-controller="Home" asp-action="Index" asp-fragment="open-home-teams">Open To Game</a>
                                         </li>
 
-                                        <li>
-                                            <a href="contact.html">Contact</a>
-                                        </li>
+                                        @if (User.Identity?.IsAuthenticated == true)
+                                        {
+                                            <li class="@(currentController == "Notifications" ? "current" : "")">
+                                                <a asp-controller="Notifications" asp-action="Index">Notifications</a>
+                                            </li>
+
+                                            <li>
+                                                <a href="#">@displayName</a>
+                                                <ul class="sub-current">
+                                                    <li>
+                                                        <a asp-controller="Teams" asp-action="Mine">My Teams</a>
+                                                    </li>
+                                                    <li>
+                                                        <a asp-controller="Notifications" asp-action="Index">My Notifications</a>
+                                                    </li>
+                                                    <li>
+                                                        <a href="#" onclick="document.getElementById('logoutFormDesktop').submit(); return false;">Logout</a>
+                                                    </li>
+                                                </ul>
+                                            </li>
+                                        }
+                                        else
+                                        {
+                                            <li class="@(currentController == "Account" ? "current" : "")">
+                                                <a href="#">Account</a>
+                                                <ul class="sub-current">
+                                                    <li>
+                                                        <a asp-controller="Account" asp-action="Login">Login</a>
+                                                    </li>
+                                                    <li>
+                                                        <a asp-controller="Account" asp-action="Register">Register</a>
+                                                    </li>
+                                                </ul>
+                                            </li>
+                                        }
                                     </ul>
-                                    <!-- End Menu-->
                                 </div>
                             </nav>
-                            <!-- End mainmenu-->
-                            <!-- Call Nav Menu-->
-                            <a class="mobile-nav" href="#mobile-nav"><i class="fa fa-bars"></i></a>
-                            <!-- End Call Nav Menu-->
+
+                            <a class="mobile-nav" href="#mobile-nav">
+                                <i class="fa fa-bars"></i>
+                            </a>
                         </div>
-                        <!-- End nav Header-->
                     </div>
                 </div>
             </div>
-            <!-- End headerbox-->
         </header>
-        <!-- End Header-->
-        <!-- Mobile Nav-->
+
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <form id="logoutFormDesktop" asp-controller="Account" asp-action="Logout" method="post" style="display:none;">
+                @Html.AntiForgeryToken()
+            </form>
+
+            <form id="logoutFormMobile" asp-controller="Account" asp-action="Logout" method="post" style="display:none;">
+                @Html.AntiForgeryToken()
+            </form>
+        }
+
         <div id="mobile-nav">
-            <!-- Menu-->
             <ul>
                 <li>
-                    <a href="index.html">Home</a>
+                    <a asp-controller="Home" asp-action="Index">Home</a>
                     <ul>
                         <li>
-                            <a href="index-1.html">Home 1</a>
+                            <a asp-controller="Home" asp-action="Index">Platform Overview</a>
                         </li>
                         <li>
-                            <a href="index-2.html">Home 2</a>
+                            <a asp-controller="Home" asp-action="Index" asp-fragment="recent-results">Recent Results</a>
                         </li>
                         <li>
-                            <a href="index-3.html">Home 3</a>
+                            <a asp-controller="Home" asp-action="Index" asp-fragment="featured-match">Featured Match</a>
                         </li>
                         <li>
-                            <a href="index-4.html">Home 4</a>
-                        </li>
-                        <li>
-                            <a href="index-5.html">Home 5</a>
-                        </li>
-                        <li>
-                            <a href="index-6.html">Home 6</a>
+                            <a asp-controller="Home" asp-action="Index" asp-fragment="open-home-teams">Open To Game Teams</a>
                         </li>
                     </ul>
                 </li>
 
                 <li>
-                    <a href="#">World Cup</a>
+                    <a href="#">Platform</a>
                     <ul>
                         <li>
-                            <a href="#">World Cup</a>
-                            <ul>
-                                <li><a href="table-point.html">Point Table</a></li>
-                                <li><a href="fixtures.html">Fixtures</a></li>
-                                <li><a href="groups.html">Groups</a></li>
-                                <li><a href="news-left-sidebar.html">News</a></li>
-                                <li><a href="contact.html">Contact Us</a></li>
-                            </ul>
-                        </li>
-
-                        <li><a href="teams.html">Teams List</a></li>
-                        <li><a href="players.html">Players List</a></li>
-                        <li><a href="results.html">Results List</a></li>
-                    </ul>
-                </li>
-
-                <li>
-                    <a href="teams.html">Teams</a>
-                    <ul>
-                        <li>
-                            <a href="teams.html">Teams List</a>
+                            <a asp-controller="Home" asp-action="Index" asp-fragment="featured-match">Featured Match</a>
                         </li>
                         <li>
-                            <a href="single-team.html">Single Team</a>
+                            <a asp-controller="Home" asp-action="Index" asp-fragment="recent-results">Recent Results</a>
+                        </li>
+                        <li>
+                            <a asp-controller="Home" asp-action="Index" asp-fragment="open-home-teams">Find Open Teams</a>
+                        </li>
+                        <li>
+                            <a asp-controller="Notifications" asp-action="Index">Notifications</a>
                         </li>
                     </ul>
                 </li>
 
                 <li>
-                    <a href="players.html">Players</a>
+                    <a asp-controller="Teams" asp-action="Index">Teams</a>
                     <ul>
                         <li>
-                            <a href="players.html">Players List</a>
+                            <a asp-controller="Teams" asp-action="Index">Teams List</a>
                         </li>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li>
+                                <a asp-controller="Teams" asp-action="Mine">My Teams</a>
+                            </li>
+                            <li>
+                                <a asp-controller="Teams" asp-action="Create">Create Team</a>
+                            </li>
+                        }
+                    </ul>
+                </li>
+
+                <li>
+                    <a asp-controller="Players" asp-action="Index">Players</a>
+                    <ul>
                         <li>
-                            <a href="single-player.html">Single Player</a>
+                            <a asp-controller="Players" asp-action="Index">Players List</a>
                         </li>
                     </ul>
                 </li>
 
                 <li>
-                    <a href="fixtures.html">Fixtures</a>
+                    <a asp-controller="Home" asp-action="Index" asp-fragment="featured-match">Fixtures</a>
                 </li>
 
                 <li>
-                    <a href="results.html">Results</a>
-                    <ul>
-                        <li>
-                            <a href="results.html">Results List</a>
-                        </li>
-                        <li>
-                            <a href="single-result.html">Single Result</a>
-                        </li>
-                    </ul>
+                    <a asp-controller="Home" asp-action="Index" asp-fragment="recent-results">Results</a>
                 </li>
 
                 <li>
-                    <a href="table-point.html">Point Table</a>
+                    <a asp-controller="Home" asp-action="Index" asp-fragment="open-home-teams">Open To Game</a>
                 </li>
 
-                <li>
-                    <a href="groups.html">Groups</a>
-                </li>
-
-                <li>
-                    <a href="#">Features</a>
-                    <ul>
-                        <li>
-                            <a href="#">Features</a>
-                            <ul>
-                                <li><a href="page-full-width.html">Full Width</a></li>
-                                <li><a href="page-left-sidebar.html">Left Sidebar</a></li>
-                                <li><a href="page-right-sidebar.html">Right Sidebar</a></li>
-                                <li><a href="page-404.html">404 Page</a></li>
-                                <li><a href="page-faq.html">FAQ</a></li>
-                                <li><a href="sitemap.html">Sitemap</a></li>
-                                <li><a href="page-pricing.html">Pricing</a></li>
-                                <li><a href="page-register.html">Register Form</a></li>
-                            </ul>
-                        </li>
-
-                        <li>
-                            <a href="#">Headers & Footers</a>
-                            <ul>
-                                <li><a href="feature-header-footer-1.html">Header Version 1</a></li>
-                                <li><a href="feature-header-footer-2.html">Header Version 2</a></li>
-                                <li><a href="feature-header-footer-3.html">Header Version 3</a></li>
-                                <li><a href="index-5.html">Header Version 4</a></li>
-                                <li><a href="feature-header-footer-1.html#footer">Footer Version 1</a></li>
-                                <li><a href="feature-header-footer-2.html#footer">Footer Version 2</a></li>
-                                <li><a href="feature-header-footer-3.html#footer">Footer Version 3</a></li>
-                            </ul>
-                        </li>
-                        <li>
-                            <a href="#">Pages</a>
-                            <ul>
-                                <li><a href="page-about.html">About Us</a></li>
-                                <li><a href="single-player.html">About Me</a></li>
-                                <li><a href="feature-header-footer-2.html#footer">Services</a></li>
-                                <li><a href="single-team.html">Club Info</a></li>
-                                <li><a href="single-result.html">Match Result</a></li>
-                                <li><a href="table-point.html">Positions</a></li>
-                            </ul>
-                        </li>
-                        <li>
-                            <a href="#">News</a>
-                            <ul>
-                                <li>
-                                    <a href="news-left-sidebar.html">News Lef Sidebar</a>
-                                </li>
-                                <li>
-                                    <a href="news-right-sidebar.html">News Right Sidebar</a>
-                                </li>
-                                <li>
-                                    <a href="news-no-sidebar.html">News No Sidebar</a>
-                                </li>
-                                <li>
-                                    <a href="single-news.html">Single News</a>
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-
-                <li>
-                    <a href="contact.html">Contact</a>
-                </li>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <li>
+                        <a asp-controller="Notifications" asp-action="Index">Notifications</a>
+                    </li>
+                    <li>
+                        <a href="#">@displayName</a>
+                        <ul>
+                            <li>
+                                <a asp-controller="Teams" asp-action="Mine">My Teams</a>
+                            </li>
+                            <li>
+                                <a asp-controller="Notifications" asp-action="Index">My Notifications</a>
+                            </li>
+                            <li>
+                                <a href="#" onclick="document.getElementById('logoutFormMobile').submit(); return false;">Logout</a>
+                            </li>
+                        </ul>
+                    </li>
+                }
+                else
+                {
+                    <li>
+                        <a href="#">Account</a>
+                        <ul>
+                            <li>
+                                <a asp-controller="Account" asp-action="Login">Login</a>
+                            </li>
+                            <li>
+                                <a asp-controller="Account" asp-action="Register">Register</a>
+                            </li>
+                        </ul>
+                    </li>
+                }
             </ul>
-            <!-- End Menu-->
         </div>
-        <!-- End Mobile Nav-->
-        
+
         @RenderBody()
 
-        <!-- footer-->
         <footer id="footer">
-            <!-- Footer Top-->
             <div class="top-footer">
-
-                <!-- Logo Footer-->
                 <div class="col-lg-12">
                     <div class="logo-footer">
                         <h2>Match Up</h2>
                     </div>
                 </div>
-                <!-- End Logo Footer-->
-                <!-- Social Icons-->
+
                 <ul class="social">
                     <li>
-                        <div>
-                            <a href="#" class="facebook">
-                                <i class="fa fa-facebook"></i>
-                            </a>
-                        </div>
+                        <div><a href="#" class="facebook"><i class="fa fa-facebook"></i></a></div>
                     </li>
                     <li>
-                        <div>
-                            <a href="#" class="twitter-icon">
-                                <i class="fa fa-twitter"></i>
-                            </a>
-                        </div>
+                        <div><a href="#" class="twitter-icon"><i class="fa fa-twitter"></i></a></div>
                     </li>
                     <li>
-                        <div>
-                            <a href="#" class="vimeo">
-                                <i class="fa fa-vimeo-square"></i>
-                            </a>
-                        </div>
+                        <div><a href="#" class="vimeo"><i class="fa fa-vimeo-square"></i></a></div>
                     </li>
                     <li>
-                        <div>
-                            <a href="#" class="google-plus">
-                                <i class="fa fa-google-plus"></i>
-                            </a>
-                        </div>
+                        <div><a href="#" class="google-plus"><i class="fa fa-google-plus"></i></a></div>
                     </li>
                     <li>
-                        <div>
-                            <a href="#" class="youtube">
-                                <i class="fa fa-youtube"></i>
-                            </a>
-                        </div>
+                        <div><a href="#" class="youtube"><i class="fa fa-youtube"></i></a></div>
                     </li>
                 </ul>
-                <!-- End Social Icons-->
             </div>
-            <!-- End Footer Top-->
-            <!-- Links Footer-->
+
             <div class="links-footer">
                 <div class="container">
                     <div class="row">
-
-                        <!-- Column Links -->
                         <div class="col-lg-2 col-md-5 col-sm-5">
                             <div class="info-links">
-                                <h5>Organisation</h5>
+                                <h5>Platform</h5>
                                 <ul>
-                                    <li><a href="#">Volunteers</a></li>
-                                    <li><a href="#">Committees</a></li>
-                                    <li><a href="#">Official Documents</a></li>
-                                    <li><a href="#">Terms of Service</a></li>
+                                    <li><a asp-controller="Home" asp-action="Index">Home</a></li>
+                                    <li><a asp-controller="Teams" asp-action="Index">Teams</a></li>
+                                    <li><a asp-controller="Players" asp-action="Index">Players</a></li>
+                                    <li><a asp-controller="Notifications" asp-action="Index">Notifications</a></li>
                                 </ul>
                             </div>
                         </div>
-                        <!-- End Column Links -->
-                        <!-- Column Links -->
+
                         <div class="col-lg-4 col-md-7 col-sm-7">
                             <div class="info-links">
-                                <h5>Groups</h5>
+                                <h5>Team Management</h5>
                                 <ul class="columns">
-                                    <li><a href="#">GROUP A</a></li>
-                                    <li><a href="#">GROUP B</a></li>
-                                    <li><a href="#">GROUP C</a></li>
-                                    <li><a href="#">GROUP D</a></li>
-                                    <li><a href="#">GROUP E</a></li>
-                                    <li><a href="#">GROUP F</a></li>
-                                    <li><a href="#">GROUP G</a></li>
-                                    <li><a href="#">GROUP H</a></li>
+                                    <li><a asp-controller="Teams" asp-action="Index">Teams List</a></li>
+                                    <li><a asp-controller="Teams" asp-action="Mine">My Teams</a></li>
+                                    <li><a asp-controller="Teams" asp-action="Create">Create Team</a></li>
+                                    <li><a asp-controller="Home" asp-action="Index" asp-fragment="open-home-teams">Open To Game</a></li>
+                                    <li><a asp-controller="Home" asp-action="Index" asp-fragment="featured-match">Featured Match</a></li>
+                                    <li><a asp-controller="Home" asp-action="Index" asp-fragment="recent-results">Recent Results</a></li>
+                                    <li><a asp-controller="Notifications" asp-action="Index">Activity</a></li>
+                                    <li><a asp-controller="Home" asp-action="Index">Platform Overview</a></li>
                                 </ul>
                             </div>
                         </div>
-                        <!-- End Column Links -->
-                        <!-- Column Links -->
+
                         <div class="col-lg-2 col-md-5 col-sm-5">
                             <div class="info-links">
-                                <h5>Interest Links</h5>
+                                <h5>Match Flow</h5>
                                 <ul>
-                                    <li><a href="#">Statistics</a></li>
-                                    <li><a href="#">Teams</a></li>
-                                    <li><a href="#">Qualifiers</a></li>
-                                    <li><a href="#">Ticketing</a></li>
+                                    <li><a asp-controller="Home" asp-action="Index" asp-fragment="open-home-teams">Find Opponent</a></li>
+                                    <li><a asp-controller="Home" asp-action="Index" asp-fragment="featured-match">Fixtures</a></li>
+                                    <li><a asp-controller="Home" asp-action="Index" asp-fragment="recent-results">Results</a></li>
+                                    <li><a asp-controller="Notifications" asp-action="Index">Approvals</a></li>
                                 </ul>
                             </div>
                         </div>
-                        <!-- End Column Links -->
-                        <!-- Column Links -->
+
                         <div class="col-lg-4 col-md-7 col-sm-7">
                             <div class="info-links">
-                                <h5>Organisation</h5>
+                                <h5>Account</h5>
                                 <ul class="columns">
-                                    <li><a href="#">NIZHNY NOVGOROD</a></li>
-                                    <li><a href="#">SAINT PETERSBURG</a></li>
-                                    <li><a href="#">EKATERINBURG</a></li>
-                                    <li><a href="#">MOSCOW</a></li>
-                                    <li><a href="#">KAZAN</a></li>
-                                    <li><a href="#">KALININGRAD</a></li>
-                                    <li><a href="#">VOLGOGRAD</a></li>
-                                    <li><a href="#">ROSTOV-ON-DON</a></li>
+                                    @if (User.Identity?.IsAuthenticated == true)
+                                    {
+                                        <li><a asp-controller="Teams" asp-action="Mine">My Teams</a></li>
+                                        <li><a asp-controller="Notifications" asp-action="Index">My Notifications</a></li>
+                                        <li><a asp-controller="Players" asp-action="Index">Browse Players</a></li>
+                                        <li><a asp-controller="Teams" asp-action="Index">Browse Teams</a></li>
+                                    }
+                                    else
+                                    {
+                                        <li><a asp-controller="Account" asp-action="Login">Login</a></li>
+                                        <li><a asp-controller="Account" asp-action="Register">Register</a></li>
+                                        <li><a asp-controller="Teams" asp-action="Index">Explore Teams</a></li>
+                                        <li><a asp-controller="Players" asp-action="Index">Explore Players</a></li>
+                                    }
                                 </ul>
                             </div>
                         </div>
-                        <!-- End Column Links -->
-
                     </div>
                 </div>
             </div>
-            <!-- End Links Footer-->
-
         </footer>
-        <!-- End footer-->
-        <!-- footer Down-->
+
         <div class="footer-down">
             <div class="container">
                 <div class="row">
                     <div class="col-md-12">
-                        <p>&copy; 2018 SportsCup . All Rights Reserved</p>
+                        <p>&copy; @DateTime.UtcNow.Year MatchUp . All Rights Reserved</p>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- footer Down-->
     </div>
-    <!-- End layout-->
-    <!-- ======================= JQuery libs =========================== -->
-    <!-- jQuery local-->
+
     <script type="text/javascript" src="~/assets/js/jquery.js"></script>
-    <!-- popper.js-->
     <script type="text/javascript" src="~/assets/js/popper.min.js"></script>
-    <!-- bootstrap.min.js-->
     <script type="text/javascript" src="~/assets/js/bootstrap.min.js"></script>
-    <!-- required-scripts.js-->
     <script type="text/javascript" src="~/assets/js/theme-scripts.js"></script>
-    <!-- theme-main.js-->
     <script type="text/javascript" src="~/assets/js/theme-main.js"></script>
-    <!-- ======================= End JQuery libs =========================== -->
+
     @RenderSection("Scripts", required: false)
 </body>
 </html>

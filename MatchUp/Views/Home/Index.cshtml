@@ -1,8 +1,985 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@model HomeIndexVm
+
+@{
+    ViewData["Title"] = "Home";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<style>
+    .home-page .item-slider {
+        min-height: 560px;
+        position: relative;
+        background-position: center center !important;
+        background-size: cover !important;
+    }
+
+        .home-page .item-slider::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.48);
+        }
+
+        .home-page .item-slider .container,
+        .home-page .item-slider .row,
+        .home-page .item-slider .info-slider {
+            position: relative;
+            z-index: 2;
+        }
+
+    .home-page .info-slider {
+        padding: 120px 0 130px;
+        max-width: 700px;
+    }
+
+        .home-page .info-slider h1,
+        .home-page .info-slider p {
+            color: #fff !important;
+        }
+
+    .home-page .btn,
+    .home-page .btn:visited,
+    .home-page .btn:focus,
+    .home-page .btn:active,
+    .home-page .btn:hover,
+    .home-page .btn-iw,
+    .home-page .btn-iw:visited,
+    .home-page .btn-iw:focus,
+    .home-page .btn-iw:active,
+    .home-page .btn-iw:hover {
+        color: #fff !important;
+        text-decoration: none !important;
+    }
+
+    .home-page .home-stat-list li a,
+    .home-page .home-stat-list li a:visited,
+    .home-page .home-stat-list li a:focus {
+        color: #fff !important;
+        text-decoration: none !important;
+    }
+
+    .home-page .home-result-link,
+    .home-page .home-result-link:visited,
+    .home-page .home-result-link:focus {
+        text-decoration: none !important;
+    }
+
+    .home-page .home-dark-panel,
+    .home-page .home-side-panel,
+    .home-page .home-main-panel {
+        margin-bottom: 30px;
+    }
+
+    .home-page .home-dark-note {
+        padding: 30px 20px;
+        color: rgba(255,255,255,0.85);
+    }
+
+    .home-page .home-match-mini {
+        background: rgba(255,255,255,0.04);
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .home-page .home-mini-teams {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .home-page .home-mini-team {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #fff;
+        font-size: 13px;
+        min-width: 0;
+    }
+
+        .home-page .home-mini-team span {
+            word-break: break-word;
+        }
+
+    .home-page .home-mini-logo {
+        width: 26px;
+        height: 26px;
+        object-fit: contain;
+        flex-shrink: 0;
+    }
+
+    .home-page .home-mini-score {
+        min-width: 64px;
+        text-align: center;
+        background: #00d084;
+        color: #fff;
+        font-weight: 700;
+        padding: 8px 10px;
+    }
+
+    .home-page .home-highlight-card .post-options {
+        margin-bottom: 18px;
+    }
+
+    .home-page .home-highlight-inner {
+        padding: 18px 0 6px;
+    }
+
+    .home-page .home-highlight-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .home-page .home-highlight-team {
+        flex: 1;
+    }
+
+        .home-page .home-highlight-team img {
+            width: 82px;
+            height: 82px;
+            object-fit: contain;
+            margin-bottom: 10px;
+        }
+
+        .home-page .home-highlight-team span {
+            display: block;
+            font-weight: 600;
+            color: #222;
+        }
+
+    .home-page .home-highlight-vs {
+        min-width: 92px;
+        background: #00d084;
+        color: #fff;
+        font-size: 30px;
+        font-weight: 700;
+        padding: 18px 8px;
+        line-height: 1;
+    }
+
+    .home-page .home-highlight-action {
+        margin-top: 10px;
+    }
+
+        .home-page .home-highlight-action .btn {
+            width: 100%;
+        }
+
+    .home-page .home-result-card {
+        height: 100%;
+        background: #fff;
+        border: 1px solid #ececec;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        margin-bottom: 25px;
+    }
+
+    .home-page .home-result-card-head {
+        background: #111;
+        color: #fff;
+        padding: 18px 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+    }
+
+        .home-page .home-result-card-head h5 {
+            color: #fff;
+            margin: 0;
+            font-size: 19px;
+        }
+
+        .home-page .home-result-card-head span {
+            color: #00d084;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+    .home-page .home-result-card-body {
+        padding: 28px 22px;
+    }
+
+    .home-page .home-result-main {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin-bottom: 22px;
+    }
+
+    .home-page .home-result-team {
+        width: 40%;
+        text-align: center;
+    }
+
+        .home-page .home-result-team img {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            margin-bottom: 12px;
+        }
+
+        .home-page .home-result-team h6 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+    .home-page .home-result-score {
+        width: 20%;
+        text-align: center;
+    }
+
+        .home-page .home-result-score span {
+            display: inline-block;
+            min-width: 44px;
+            background: #111;
+            color: #fff;
+            font-size: 28px;
+            font-weight: 700;
+            padding: 10px 0;
+            margin: 0 4px;
+        }
+
+    .home-page .home-result-footer {
+        text-align: center;
+    }
+
+    .home-page .home-post-compact {
+        border-bottom: 1px solid #ededed;
+        padding: 22px 0;
+    }
+
+        .home-page .home-post-compact:first-child {
+            padding-top: 0;
+        }
+
+        .home-page .home-post-compact:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .home-page .home-post-compact h5 {
+            margin-bottom: 8px;
+        }
+
+        .home-page .home-post-compact .data-info {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .home-page .home-post-compact .home-compact-actions {
+            margin-top: 12px;
+        }
+
+    .home-page .home-player-grid-item img {
+        width: 100%;
+        height: 185px;
+        object-fit: cover;
+    }
+
+    .home-page .home-player-grid-item {
+        margin-bottom: 25px;
+    }
+
+    .home-page .home-team-card {
+        height: 100%;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04);
+        padding: 18px;
+        margin-bottom: 20px;
+    }
+
+    .home-page .home-team-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+        .home-page .home-team-card-header img {
+            width: 54px;
+            height: 54px;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .home-page .home-team-card-header h5 {
+            margin: 0 0 4px 0;
+            color: #fff;
+        }
+
+        .home-page .home-team-card-header small {
+            color: rgba(255,255,255,0.75);
+        }
+
+    .home-page .home-team-card p {
+        color: rgba(255,255,255,0.88);
+        margin-bottom: 10px;
+    }
+
+    .home-page .home-team-card .btn {
+        margin-top: 8px;
+    }
+
+    .home-page .home-stadium-card {
+        margin-bottom: 20px;
+        border: 1px solid #ececec;
+        background: #fff;
+    }
+
+        .home-page .home-stadium-card img {
+            width: 100%;
+            height: 210px;
+            object-fit: cover;
+        }
+
+    .home-page .home-stadium-card-body {
+        padding: 16px;
+    }
+
+        .home-page .home-stadium-card-body h5 {
+            margin-bottom: 8px;
+        }
+
+    .home-page .home-upcoming-item {
+        margin-bottom: 16px;
+    }
+
+    .home-page .home-upcoming-action {
+        margin-top: 10px;
+    }
+
+    .home-page .home-summary-box p {
+        margin-bottom: 15px;
+    }
+
+    @@media (max-width: 991.98px) {
+        .home-page .info-slider {
+            padding: 90px 0 110px;
+        }
+
+        .home-page .home-result-main,
+        .home-page .home-highlight-row {
+            flex-direction: column;
+        }
+
+        .home-page .home-result-team,
+        .home-page .home-result-score {
+            width: 100%;
+        }
+
+        .home-page .home-highlight-vs {
+            min-width: 120px;
+        }
+    }
+</style>
+
+<div class="home-page">
+    <div class="hero-header">
+        <div id="hero-slider" class="hero-slider">
+            <div class="item-slider" style="background:url('/img/slide/3.jpg');">
+                <div class="container">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <div class="info-slider">
+                                <h1>Build Your Team, Find Your Match</h1>
+                                <p>Manage teams, activate Open To Game, send requests, agree on venue, and confirm results in one football platform.</p>
+                                <a asp-controller="Teams"
+                                   asp-action="Index"
+                                   class="btn-iw outline">
+                                    Explore Teams <i class="fa fa-long-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-slider" style="background:url('/img/slide/2.jpg');">
+                <div class="container">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <div class="info-slider">
+                                <h1>@Model.OpenToGameTeamCount Teams Open To Game</h1>
+                                <p>Browse active teams, compare availability, and quickly move toward your next scheduled match.</p>
+                                <a asp-fragment="open-to-game-section"
+                                   class="btn-iw outline">
+                                    Open To Game Teams <i class="fa fa-long-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="item-slider" style="background:url('/img/slide/1.jpg');">
+                <div class="container">
+                    <div class="row align-items-center">
+                        <div class="col-lg-8">
+                            <div class="info-slider">
+                                <h1>@Model.CompletedMatchCount Confirmed Results</h1>
+                                <p>Track completed matches, review final scores, and open full match details with venue and result history.</p>
+                                <a asp-fragment="recent-results-section"
+                                   class="btn-iw outline">
+                                    Recent Results <i class="fa fa-long-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="content-info">
+        <div class="dark-home">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xl-9 col-md-12">
+                        <ul class="nav nav-tabs" id="homeTab">
+                            <li class="active"><a href="#statistics" data-toggle="tab">STATISTICS</a></li>
+                            <li><a href="#recent-home-results" data-toggle="tab">RECENT RESULTS</a></li>
+                            <li><a href="#open-home-teams" data-toggle="tab">OPEN TO GAME</a></li>
+                        </ul>
+
+                        <div class="tab-content">
+                            <div class="tab-pane active" id="statistics">
+                                <div class="row">
+                                    <div class="col-lg-4">
+                                        <div class="club-ranking home-dark-panel">
+                                            <h5>Platform Stats</h5>
+                                            <div class="info-ranking">
+                                                <ul class="home-stat-list">
+                                                    <li>
+                                                        <span class="position">1</span>
+                                                        <a asp-controller="Teams" asp-action="Index">Teams</a>
+                                                        <span class="points">@Model.TeamCount</span>
+                                                    </li>
+                                                    <li>
+                                                        <span class="position">2</span>
+                                                        <a asp-controller="Players" asp-action="Index">Players</a>
+                                                        <span class="points">@Model.PlayerCount</span>
+                                                    </li>
+                                                    <li>
+                                                        <span class="position">3</span>
+                                                        <a asp-fragment="upcoming-matches-section">Upcoming Matches</a>
+                                                        <span class="points">@Model.ScheduledMatchCount</span>
+                                                    </li>
+                                                    <li>
+                                                        <span class="position">4</span>
+                                                        <a asp-fragment="recent-results-section">Completed Matches</a>
+                                                        <span class="points">@Model.CompletedMatchCount</span>
+                                                    </li>
+                                                    <li>
+                                                        <span class="position">5</span>
+                                                        <a asp-fragment="open-to-game-section">Open To Game</a>
+                                                        <span class="points">@Model.OpenToGameTeamCount</span>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4">
+                                        <div class="recent-results home-dark-panel">
+                                            <h5>Latest Results</h5>
+                                            <div class="info-results">
+                                                @if (!Model.RecentResults.Any())
+                                                {
+                                                    <div class="home-dark-note">
+                                                        No confirmed results yet.
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    @foreach (var match in Model.RecentResults.Take(3))
+                                                    {
+                                                        <div class="home-match-mini">
+                                                            <div class="head" style="color:#fff; margin-bottom:8px;">
+                                                                @match.HomeTeamName vs @match.AwayTeamName
+                                                                <span class="date" style="float:right;">@match.StartAtUtc.ToString("dd MMM yyyy")</span>
+                                                            </div>
+
+                                                            <div class="home-mini-teams">
+                                                                <div class="home-mini-team">
+                                                                    <img src="@match.HomeTeamLogoUrl" alt="@match.HomeTeamName" class="home-mini-logo" />
+                                                                    <span>@match.HomeTeamName</span>
+                                                                </div>
+
+                                                                <div class="home-mini-score">
+                                                                    @match.HomeScore - @match.AwayScore
+                                                                </div>
+
+                                                                <div class="home-mini-team" style="justify-content:flex-end;">
+                                                                    <span>@match.AwayTeamName</span>
+                                                                    <img src="@match.AwayTeamLogoUrl" alt="@match.AwayTeamName" class="home-mini-logo" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-lg-4">
+                                        <div class="player-ranking home-dark-panel">
+                                            <h5>Featured Players</h5>
+                                            <div class="info-player">
+                                                @if (!Model.FeaturedPlayers.Any())
+                                                {
+                                                    <div class="home-dark-note">
+                                                        No players found.
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <ul>
+                                                        @{
+                                                            var order = 1;
+                                                        }
+                                                        @foreach (var player in Model.FeaturedPlayers.Take(6))
+                                                        {
+                                                            <li>
+                                                                <span class="position">@order</span>
+                                                                <a asp-controller="Players"
+                                                                   asp-action="Details"
+                                                                   asp-route-id="@player.PlayerId">
+                                                                    <img src="@(string.IsNullOrWhiteSpace(player.ImageUrl) ? Url.Content("~/img/default-player.jpg") : player.ImageUrl)"
+                                                                         alt="@player.FullName">
+                                                                    @player.FullName
+                                                                </a>
+                                                                <span class="points">@player.Nationality</span>
+                                                            </li>
+
+                                                            order++;
+                                                        }
+                                                    </ul>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane" id="recent-home-results">
+                                @if (!Model.RecentResults.Any())
+                                {
+                                    <div class="home-dark-note">
+                                        No confirmed results yet.
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="row">
+                                        @foreach (var match in Model.RecentResults.Take(4))
+                                        {
+                                            <div class="col-lg-6">
+                                                <div class="home-result-card">
+                                                    <div class="home-result-card-head">
+                                                        <h5>@match.HomeTeamName vs @match.AwayTeamName</h5>
+                                                        <span>@match.StartAtUtc.ToString("dd MMM yyyy")</span>
+                                                    </div>
+
+                                                    <div class="home-result-card-body">
+                                                        <div class="home-result-main">
+                                                            <div class="home-result-team">
+                                                                <img src="@match.HomeTeamLogoUrl" alt="@match.HomeTeamName" />
+                                                                <h6>@match.HomeTeamName</h6>
+                                                            </div>
+
+                                                            <div class="home-result-score">
+                                                                <span>@match.HomeScore</span>
+                                                                <span>@match.AwayScore</span>
+                                                            </div>
+
+                                                            <div class="home-result-team">
+                                                                <img src="@match.AwayTeamLogoUrl" alt="@match.AwayTeamName" />
+                                                                <h6>@match.AwayTeamName</h6>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="home-result-footer">
+                                                            <a asp-controller="Matches"
+                                                               asp-action="Details"
+                                                               asp-route-id="@match.MatchId"
+                                                               class="btn btn-primary">
+                                                                View More
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="tab-pane" id="open-home-teams">
+                                @if (!Model.OpenToGameTeams.Any())
+                                {
+                                    <div class="home-dark-note">
+                                        No teams are currently open to game.
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="row">
+                                        @foreach (var team in Model.OpenToGameTeams.Take(6))
+                                        {
+                                            <div class="col-lg-6">
+                                                <div class="home-team-card">
+                                                    <div class="home-team-card-header">
+                                                        <img src="@(string.IsNullOrWhiteSpace(team.LogoUrl) ? Url.Content("~/img/default-team-logo.png") : team.LogoUrl)"
+                                                             alt="@team.Name" />
+                                                        <div>
+                                                            <h5>@team.Name</h5>
+                                                            <small>Owner: @team.OwnerName</small>
+                                                        </div>
+                                                    </div>
+
+                                                    <p>
+                                                        @(string.IsNullOrWhiteSpace(team.Description)
+                                                                                                        ? "This team is currently available for new matches."
+                                                                                                        : team.Description)
+                                            </p>
+
+                                                    <p><strong>Active Members:</strong> @team.ActiveMemberCount</p>
+
+                                                    <a asp-controller="Teams"
+                                                       asp-action="Details"
+                                                       asp-route-id="@team.TeamId"
+                                                       class="btn btn-primary">
+                                                        View Team
+                                                    </a>
+                                                </div>
+                                            </div>
+                                                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-12">
+                        <div class="counter-home-wraper home-side-panel">
+                            <div class="title-color text-center">
+                                <h4>Featured Match</h4>
+                            </div>
+
+                            <div class="content-counter content-counter-home home-highlight-card">
+                                @if (Model.HighlightMatch is null)
+                                {
+                                    <p class="text-center">No match data available yet.</p>
+                                }
+                                else
+                                {
+                                    <p class="text-center">
+                                        <i class="fa fa-calendar"></i>
+                                        @Model.HighlightMatch.StartAtUtc.ToString("dd MMM yyyy HH:mm")
+                                    </p>
+
+                                    <ul class="post-options">
+                                        <li><i class="fa fa-clock-o"></i>@Model.HighlightMatch.Format</li>
+                                        <li><i class="fa fa-map-marker"></i>@Model.HighlightMatch.VenueText</li>
+                                    </ul>
+
+                                    <div class="home-highlight-inner">
+                                        <div class="home-highlight-row">
+                                            <div class="home-highlight-team">
+                                                <img src="@Model.HighlightMatch.HomeTeamLogoUrl" alt="@Model.HighlightMatch.HomeTeamName" />
+                                                <span>@Model.HighlightMatch.HomeTeamName</span>
+                                            </div>
+
+                                            <div class="home-highlight-vs">
+                                                @if (Model.HighlightMatch.HomeScore.HasValue && Model.HighlightMatch.AwayScore.HasValue)
+                                                {
+                                                    <span>@Model.HighlightMatch.HomeScore - @Model.HighlightMatch.AwayScore</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>VS</span>
+                                                }
+                                            </div>
+
+                                            <div class="home-highlight-team">
+                                                <img src="@Model.HighlightMatch.AwayTeamLogoUrl" alt="@Model.HighlightMatch.AwayTeamName" />
+                                                <span>@Model.HighlightMatch.AwayTeamName</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="home-highlight-action">
+                                            <a asp-controller="Matches"
+                                               asp-action="Details"
+                                               asp-route-id="@Model.HighlightMatch.MatchId"
+                                               class="btn btn-primary">
+                                                Open Match <i class="fa fa-trophy"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container padding-top">
+            <div class="row">
+                <div class="col-lg-8 col-xl-8">
+                    <div class="panel-box home-main-panel" id="recent-results-section">
+                        <div class="titles">
+                            <h4>Recent Results</h4>
+                        </div>
+
+                        <div class="info-panel">
+                            @if (!Model.RecentResults.Any())
+                            {
+                                <p>No completed matches found.</p>
+                            }
+                            else
+                            {
+                                @foreach (var match in Model.RecentResults)
+                                {
+                                    <div class="home-post-compact">
+                                        <h5>
+                                            <a asp-controller="Matches"
+                                               asp-action="Details"
+                                               asp-route-id="@match.MatchId"
+                                               class="home-result-link">
+                                                @match.HomeTeamName vs @match.AwayTeamName
+                                            </a>
+                                        </h5>
+
+                                        <span class="data-info">@match.StartAtUtc.ToString("dd MMM yyyy HH:mm")</span>
+
+                                        <p>
+                                            <strong>Score:</strong> @match.HomeScore - @match.AwayScore
+                                            <br />
+                                            <strong>Venue:</strong> @match.VenueText
+                                        </p>
+
+                                        <div class="home-compact-actions">
+                                            <a asp-controller="Matches"
+                                               asp-action="Details"
+                                               asp-route-id="@match.MatchId"
+                                               class="btn btn-primary">
+                                                View More
+                                            </a>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="panel-box home-main-panel" id="open-to-game-section">
+                        <div class="titles">
+                            <h4>Open To Game Teams</h4>
+                        </div>
+
+                        <div class="info-panel">
+                            @if (!Model.OpenToGameTeams.Any())
+                            {
+                                <p>No teams are currently open to game.</p>
+                            }
+                            else
+                            {
+                                <div class="row">
+                                    @foreach (var team in Model.OpenToGameTeams)
+                                    {
+                                        <div class="col-md-6">
+                                            <div class="post-item" style="padding:0; border:none; margin-bottom:25px;">
+                                                <div class="row align-items-center">
+                                                    <div class="col-3">
+                                                        <img src="@(string.IsNullOrWhiteSpace(team.LogoUrl) ? Url.Content("~/img/default-team-logo.png") : team.LogoUrl)"
+                                                             alt="@team.Name"
+                                                             class="img-responsive"
+                                                             style="width:100%; max-width:84px; height:84px; object-fit:contain;">
+                                                    </div>
+
+                                                    <div class="col-9">
+                                                        <h5>
+                                                            <a asp-controller="Teams"
+                                                               asp-action="Details"
+                                                               asp-route-id="@team.TeamId">
+                                                                @team.Name
+                                                            </a>
+                                                        </h5>
+
+                                                        <span class="data-info">Owner: @team.OwnerName</span>
+
+                                                        <p style="margin-bottom:10px;">
+                                                            @(string.IsNullOrWhiteSpace(team.Description)
+                                                                                                                ? "Available for new matches."
+                                                                                                                : team.Description)
+                                                </p>
+
+                                                        <a asp-controller="Teams"
+                                                           asp-action="Details"
+                                                           asp-route-id="@team.TeamId"
+                                                           class="btn btn-primary">
+                                                            Open Team
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                                                }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="panel-box home-main-panel">
+                        <div class="titles">
+                            <h4>Featured Players</h4>
+                        </div>
+
+                        <div class="info-panel">
+                            @if (!Model.FeaturedPlayers.Any())
+                            {
+                                <p>No players found.</p>
+                            }
+                            else
+                            {
+                                <div class="row">
+                                    @foreach (var player in Model.FeaturedPlayers)
+                                    {
+                                        <div class="col-sm-6 col-md-4">
+                                            <div class="box-info home-player-grid-item">
+                                                <a asp-controller="Players"
+                                                   asp-action="Details"
+                                                   asp-route-id="@player.PlayerId">
+                                                    <img src="@(string.IsNullOrWhiteSpace(player.ImageUrl) ? Url.Content("~/img/default-player.jpg") : player.ImageUrl)"
+                                                         alt="@player.FullName"
+                                                         class="img-responsive">
+                                                </a>
+
+                                                <h6 class="entry-title">
+                                                    <a asp-controller="Players"
+                                                       asp-action="Details"
+                                                       asp-route-id="@player.PlayerId">
+                                                        @player.FullName
+                                                    </a>
+                                                </h6>
+
+                                                <small>@player.Nationality</small>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="col-lg-4 col-xl-4">
+                    <div class="panel-box home-side-panel">
+                        <div class="titles no-margin">
+                            <h4>Featured Stadiums</h4>
+                        </div>
+
+                        <div class="info-panel">
+                            @if (!Model.FeaturedStadiums.Any())
+                            {
+                                <p>No stadiums found.</p>
+                            }
+                            else
+                            {
+                                @foreach (var stadium in Model.FeaturedStadiums)
+                                {
+                                    <div class="home-stadium-card">
+                                        <img src="@(string.IsNullOrWhiteSpace(stadium.ImageUrl) ? Url.Content("~/img/locations/1.jpg") : stadium.ImageUrl)"
+                                             alt="@stadium.Name" />
+
+                                        <div class="home-stadium-card-body">
+                                            <h5>@stadium.Name</h5>
+                                            <p><strong>City:</strong> @stadium.CityName</p>
+                                            <p>@stadium.FormattedAddress</p>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div class="panel-box home-side-panel" id="upcoming-matches-section">
+                        <div class="titles">
+                            <h4><i class="fa fa-calendar"></i>Upcoming Matches</h4>
+                        </div>
+
+                        <div class="info-panel">
+                            @if (!Model.UpcomingMatches.Any())
+                            {
+                                <p>No upcoming matches.</p>
+                            }
+                            else
+                            {
+                                <ul class="list-diary">
+                                    @foreach (var match in Model.UpcomingMatches)
+                                    {
+                                        <li class="home-upcoming-item">
+                                            <h6>
+                                                @match.Format
+                                                <span>@match.StartAtUtc.ToString("dd MMM yyyy - HH:mm")</span>
+                                            </h6>
+
+                                            <ul class="club-logo">
+                                                <li>
+                                                    <img src="@match.HomeTeamLogoUrl" alt="@match.HomeTeamName">
+                                                    <span>@match.HomeTeamName</span>
+                                                </li>
+                                                <li>
+                                                    <img src="@match.AwayTeamLogoUrl" alt="@match.AwayTeamName">
+                                                    <span>@match.AwayTeamName</span>
+                                                </li>
+                                            </ul>
+
+                                            <div style="margin-top:8px;">
+                                                <small class="meta-text">@match.VenueText</small>
+                                            </div>
+
+                                            <div class="home-upcoming-action">
+                                                <a asp-controller="Matches"
+                                                   asp-action="Details"
+                                                   asp-route-id="@match.MatchId"
+                                                   class="btn btn-primary">
+                                                    Open Match
+                                                </a>
+                                            </div>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="panel-box home-side-panel home-summary-box">
+                        <div class="titles no-margin">
+                            <h4><i class="fa fa-futbol-o"></i>Platform Summary</h4>
+                        </div>
+
+                        <div class="info-panel">
+                            <p><strong>Teams:</strong> @Model.TeamCount</p>
+                            <p><strong>Players:</strong> @Model.PlayerCount</p>
+                            <p><strong>Upcoming Matches:</strong> @Model.ScheduledMatchCount</p>
+                            <p><strong>Completed Matches:</strong> @Model.CompletedMatchCount</p>
+                            <p><strong>Open To Game Teams:</strong> @Model.OpenToGameTeamCount</p>
+
+                            <a asp-fragment="open-to-game-section"
+                               class="btn btn-primary">
+                                Browse Open Teams
+                            </a>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </section>
 </div>

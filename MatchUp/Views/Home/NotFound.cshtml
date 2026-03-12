@@ -1,0 +1,44 @@
+﻿@{
+    ViewData["Title"] = "Page 404";
+}
+
+<div class="section-title" style="background:url('/img/slide/1.jpg') center center / cover no-repeat;">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>Page 404</h1>
+            </div>
+
+            <div class="col-md-4">
+                <div class="breadcrumbs">
+                    <ul>
+                        <li><a asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li>404</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content-info">
+    <section class="container">
+        <div class="row">
+            <div class="page-error" style="width:100%; text-align:center; padding:70px 0;">
+                <h1>404 <i class="fa fa-unlink"></i></h1>
+                <hr class="tall">
+                <p class="lead">We're sorry, but the page you were looking for doesn't exist.</p>
+
+                <div style="margin-top:25px;">
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-lg btn-primary" style="margin-right:10px;">
+                        Return Home
+                    </a>
+
+                    <a asp-controller="Teams" asp-action="Index" class="btn btn-lg btn-default">
+                        Browse Teams
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+</section>

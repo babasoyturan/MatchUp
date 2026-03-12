@@ -54,6 +54,8 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
+app.UseStatusCodePagesWithReExecute("/Home/NotFoundPage");
+
 app.UseRouting();
 
 app.UseAuthentication();
