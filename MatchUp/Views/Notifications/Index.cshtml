@@ -2,7 +2,188 @@
 
 @{
     ViewData["Title"] = "Notifications";
+
+    var isUnreadTab = string.Equals(Model.ActiveTab, "unread", StringComparison.OrdinalIgnoreCase)
+                      || string.IsNullOrWhiteSpace(Model.ActiveTab);
+
+    var currentNotifications = isUnreadTab
+        ? Model.UnreadNotifications
+        : Model.ReadNotifications;
+
+    var currentPage = isUnreadTab
+        ? Model.UnreadPage
+        : Model.ReadPage;
+
+    var totalPages = isUnreadTab
+        ? Model.UnreadTotalPages
+        : Model.ReadTotalPages;
 }
+
+<style>
+    .notifications-tabs {
+        margin-bottom: 25px;
+    }
+
+        .notifications-tabs .nav-tabs {
+            border-bottom: 0;
+        }
+
+            .notifications-tabs .nav-tabs li {
+                margin-right: 10px;
+            }
+
+                .notifications-tabs .nav-tabs li a {
+                    display: block;
+                    padding: 12px 22px;
+                    background: #111;
+                    color: #fff !important;
+                    border: 0;
+                    border-radius: 0;
+                    text-decoration: none !important;
+                    font-weight: 600;
+                }
+
+                    .notifications-tabs .nav-tabs li.active a,
+                    .notifications-tabs .nav-tabs li a:hover,
+                    .notifications-tabs .nav-tabs li a:focus {
+                        background: #00d084;
+                        color: #fff !important;
+                        text-decoration: none !important;
+                    }
+
+    .notification-card {
+        margin-bottom: 25px;
+        border: 1px solid #efefef;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+        .notification-card.unread-card {
+            border-left: 4px solid #00d084;
+        }
+
+        .notification-card.read-card {
+            opacity: 0.96;
+        }
+
+        .notification-card .titles h4 {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin: 0;
+        }
+
+    .notification-status-badge {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+        .notification-status-badge.unread {
+            background: rgba(0, 208, 132, 0.14);
+            color: #00a96b;
+        }
+
+        .notification-status-badge.read {
+            background: #f2f2f2;
+            color: #666;
+        }
+
+    .notification-meta p {
+        margin-bottom: 10px;
+    }
+
+    .notification-actions {
+        margin-top: 18px;
+    }
+
+        .notification-actions form,
+        .notification-actions a,
+        .notification-actions button {
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+    .notification-empty-box {
+        padding: 45px 20px;
+        text-align: center;
+    }
+
+        .notification-empty-box h4 {
+            margin-bottom: 10px;
+        }
+
+    .notifications-pagination-wrapper {
+        margin-top: 30px;
+        text-align: center;
+    }
+
+    .notifications-pagination {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .notifications-page-link,
+    .notifications-page-current,
+    .notifications-page-disabled {
+        min-width: 42px;
+        height: 42px;
+        padding: 0 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        font-weight: 600;
+        text-decoration: none !important;
+        border: 1px solid #e5e5e5;
+        background: #fff;
+        color: #232323 !important;
+        transition: all 0.2s ease-in-out;
+    }
+
+        .notifications-page-link:hover,
+        .notifications-page-link:focus {
+            background: #00d084;
+            border-color: #00d084;
+            color: #fff !important;
+            text-decoration: none !important;
+        }
+
+    .notifications-page-current {
+        background: #00d084;
+        border-color: #00d084;
+        color: #fff !important;
+        cursor: default;
+    }
+
+    .notifications-page-disabled {
+        background: #f7f7f7;
+        color: #999 !important;
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
+
+    .notification-open-link,
+    .notification-open-link:visited,
+    .notification-open-link:focus,
+    .notification-open-link:active {
+        color: #fff !important;
+        text-decoration: none !important;
+    }
+
+        .notification-open-link:hover {
+            color: #fff !important;
+            text-decoration: none !important;
+            opacity: 0.92;
+        }
+</style>
 
 <div class="section-title" style="background:url('/img/slide/1.jpg')">
     <div class="container">
@@ -29,37 +210,60 @@
             <div class="col-lg-12">
                 <div class="panel-box">
                     <div class="titles">
-                        <h4>
-                            Notifications
-                            <span style="margin-left:10px; font-size:14px;">
-                                Unread: @Model.UnreadCount
-                            </span>
-                        </h4>
+                        <h4>Notifications</h4>
                     </div>
 
                     <div class="info-panel">
-                        @if (!Model.Notifications.Any())
+                        <div class="notifications-tabs">
+                            <ul class="nav nav-tabs">
+                                <li class="@(isUnreadTab ? "active" : "")">
+                                    <a asp-controller="Notifications"
+                                       asp-action="Index"
+                                       asp-route-activeTab="unread"
+                                       asp-route-unreadPage="@Model.UnreadPage"
+                                       asp-route-readPage="@Model.ReadPage">
+                                        Unread (@Model.UnreadCount)
+                                    </a>
+                                </li>
+
+                                <li class="@(!isUnreadTab ? "active" : "")">
+                                    <a asp-controller="Notifications"
+                                       asp-action="Index"
+                                       asp-route-activeTab="read"
+                                       asp-route-unreadPage="@Model.UnreadPage"
+                                       asp-route-readPage="@Model.ReadPage">
+                                        Read (@Model.ReadCount)
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        @if (!currentNotifications.Any())
                         {
-                            <div class="text-center" style="padding:40px 20px;">
-                                <h4>No notifications found</h4>
-                                <p>You do not have any notifications yet.</p>
-                            </div>
-                        }
+                            <div class="notification-empty-box">
+                                <h4>No @(isUnreadTab ? "unread" : "read") notifications</h4>
+                                <p>
+                                    @(isUnreadTab
+                                                                    ? "You do not have any unread notifications right now."
+                                                                    : "You do not have any read notifications yet.")
+                            </p>
+                        </div>
+                                                }
                         else
                         {
-                            @foreach (var notification in Model.Notifications)
+                            @foreach (var notification in currentNotifications)
                             {
-                                <div class="panel-box" style="margin-bottom:20px;">
+                                <div class="panel-box notification-card @(notification.IsRead ? "read-card" : "unread-card")">
                                     <div class="titles no-margin">
                                         <h4>
-                                            @notification.Title
-                                            <span style="float:right; font-size:13px;">
+                                            <span>@notification.Title</span>
+                                            <span class="notification-status-badge @(notification.IsRead ? "read" : "unread")">
                                                 @(notification.IsRead ? "Read" : "Unread")
                                             </span>
                                         </h4>
                                     </div>
 
-                                    <div class="info-panel">
+                                    <div class="info-panel notification-meta">
                                         <p>
                                             <strong>Type:</strong> @notification.TypeText
                                         </p>
@@ -90,14 +294,14 @@
                                         @if (notification.ProposedSquadNumber.HasValue)
                                         {
                                             <p>
-                                                <strong>Proposed Squad Number:</strong> @notification.ProposedSquadNumber
+                                                <strong>Proposed Squad Number:</strong> @notification.ProposedSquadNumber.Value
                                             </p>
                                         }
 
-                                        @if (!string.IsNullOrWhiteSpace(notification.OpenToGameSubmissionStatus))
+                                        @if (!string.IsNullOrWhiteSpace(notification.OpenToGameConfigStatus))
                                         {
                                             <p>
-                                                <strong>Open To Game Status:</strong> @notification.OpenToGameSubmissionStatus
+                                                <strong>Open To Game Status:</strong> @notification.OpenToGameConfigStatus
                                             </p>
                                         }
 
@@ -143,27 +347,12 @@
                                             </p>
                                         }
 
-                                        @if (!string.IsNullOrWhiteSpace(notification.MatchResultProposalStatus))
-                                        {
-                                            <p>
-                                                <strong>Result Proposal Status:</strong> @notification.MatchResultProposalStatus
-                                            </p>
-                                        }
-
-                                        @if (notification.ProposedHomeTeamScore.HasValue && notification.ProposedAwayTeamScore.HasValue)
-                                        {
-                                            <p>
-                                                <strong>Proposed Score:</strong> @notification.ProposedHomeTeamScore - @notification.ProposedAwayTeamScore
-                                            </p>
-                                        }
-
-                                        <div style="margin-top:15px;">
+                                        <div class="notification-actions">
                                             @if (notification.CanAccept && notification.TeamInviteId.HasValue)
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="AcceptTeamInvite"
-                                                      method="post"
-                                                      style="display:inline-block; margin-right:10px;">
+                                                      method="post">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="inviteId" value="@notification.TeamInviteId.Value" />
                                                     <input type="hidden" name="notificationId" value="@notification.Id" />
@@ -177,8 +366,7 @@
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="DeclineTeamInvite"
-                                                      method="post"
-                                                      style="display:inline-block; margin-right:10px;">
+                                                      method="post">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="inviteId" value="@notification.TeamInviteId.Value" />
                                                     <input type="hidden" name="notificationId" value="@notification.Id" />
@@ -188,14 +376,13 @@
                                                 </form>
                                             }
 
-                                            @if (notification.CanApproveOpenToGame && notification.OpenToGameSubmissionId.HasValue)
+                                            @if (notification.CanApproveOpenToGame && notification.OpenToGameConfigId.HasValue)
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="ApproveOpenToGame"
-                                                      method="post"
-                                                      style="display:inline-block; margin-right:10px;">
+                                                      method="post">
                                                     @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="submissionId" value="@notification.OpenToGameSubmissionId.Value" />
+                                                    <input type="hidden" name="submissionId" value="@notification.OpenToGameConfigId.Value" />
                                                     <input type="hidden" name="notificationId" value="@notification.Id" />
                                                     <button type="submit" class="btn btn-success">
                                                         Approve
@@ -203,14 +390,13 @@
                                                 </form>
                                             }
 
-                                            @if (notification.CanDeclineOpenToGame && notification.OpenToGameSubmissionId.HasValue)
+                                            @if (notification.CanDeclineOpenToGame && notification.OpenToGameConfigId.HasValue)
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="DeclineOpenToGame"
-                                                      method="post"
-                                                      style="display:inline-block; margin-right:10px;">
+                                                      method="post">
                                                     @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="submissionId" value="@notification.OpenToGameSubmissionId.Value" />
+                                                    <input type="hidden" name="submissionId" value="@notification.OpenToGameConfigId.Value" />
                                                     <input type="hidden" name="notificationId" value="@notification.Id" />
                                                     <button type="submit" class="btn btn-danger">
                                                         Decline
@@ -222,8 +408,7 @@
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="AcceptGameRequest"
-                                                      method="post"
-                                                      style="display:inline-block; margin-right:10px;">
+                                                      method="post">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="gameRequestId" value="@notification.GameRequestId.Value" />
                                                     <input type="hidden" name="notificationId" value="@notification.Id" />
@@ -237,8 +422,7 @@
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="DeclineGameRequest"
-                                                      method="post"
-                                                      style="display:inline-block; margin-right:10px;">
+                                                      method="post">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="gameRequestId" value="@notification.GameRequestId.Value" />
                                                     <input type="hidden" name="notificationId" value="@notification.Id" />
@@ -253,57 +437,22 @@
                                                 <a asp-controller="Matches"
                                                    asp-action="Details"
                                                    asp-route-id="@notification.MatchId.Value"
-                                                   class="btn btn-primary"
-                                                   style="display:inline-block; margin-right:10px;">
+                                                   class="btn btn-primary notification-open-link">
                                                     Open Match
                                                 </a>
                                             }
 
-                                            @if (notification.CanApproveMatchResultProposal && notification.MatchResultProposalId.HasValue)
-                                            {
-                                                <form asp-controller="Notifications"
-                                                      asp-action="ApproveMatchResultProposal"
-                                                      method="post"
-                                                      style="display:inline-block; margin-right:10px;">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="resultProposalId" value="@notification.MatchResultProposalId.Value" />
-                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
-                                                    <button type="submit" class="btn btn-success">
-                                                        Approve Result
-                                                    </button>
-                                                </form>
-                                            }
-
-                                            @if (notification.CanDeclineMatchResultProposal && notification.MatchResultProposalId.HasValue)
-                                            {
-                                                <form asp-controller="Notifications"
-                                                      asp-action="DeclineMatchResultProposal"
-                                                      method="post"
-                                                      style="display:inline-block; margin-right:10px;">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="resultProposalId" value="@notification.MatchResultProposalId.Value" />
-                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
-                                                    <button type="submit" class="btn btn-danger">
-                                                        Decline Result
-                                                    </button>
-                                                </form>
-                                            }
-
-
                                             @if (!notification.IsRead &&
-                                                !notification.CanAccept &&
-                                                !notification.CanDecline &&
-                                                !notification.CanApproveOpenToGame &&
-                                                !notification.CanDeclineOpenToGame &&
-                                                !notification.CanAcceptGameRequest &&
-                                                !notification.CanDeclineGameRequest && 
-                                                !notification.CanApproveMatchResultProposal && 
-                                                !notification.CanDeclineMatchResultProposal)
+                                                                                !notification.CanAccept &&
+                                                                                !notification.CanDecline &&
+                                                                                !notification.CanApproveOpenToGame &&
+                                                                                !notification.CanDeclineOpenToGame &&
+                                                                                !notification.CanAcceptGameRequest &&
+                                                                                !notification.CanDeclineGameRequest)
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="MarkAsRead"
-                                                      method="post"
-                                                      style="display:inline-block;">
+                                                      method="post">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="notificationId" value="@notification.Id" />
                                                     <button type="submit" class="btn btn-primary">
@@ -319,6 +468,64 @@
                                                 </span>
                                             }
                                         </div>
+                                    </div>
+                                </div>
+                            }
+
+                            @if (totalPages > 1)
+                            {
+                                <div class="notifications-pagination-wrapper">
+                                    <div class="notifications-pagination">
+                                        @if (currentPage > 1)
+                                        {
+                                            <a asp-controller="Notifications"
+                                               asp-action="Index"
+                                               asp-route-activeTab="@(isUnreadTab ? "unread" : "read")"
+                                               asp-route-unreadPage="@(isUnreadTab? currentPage - 1 : Model.UnreadPage)"
+                                               asp-route-readPage="@(!isUnreadTab ? currentPage - 1 : Model.ReadPage)"
+                                               class="notifications-page-link">
+                                                Previous
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="notifications-page-disabled">Previous</span>
+                                        }
+
+                                        @for (var i = 1; i <= totalPages; i++)
+                                        {
+                                            if (i == currentPage)
+                                            {
+                                                <span class="notifications-page-current">@i</span>
+                                            }
+                                            else
+                                            {
+                                                <a asp-controller="Notifications"
+                                                   asp-action="Index"
+                                                   asp-route-activeTab="@(isUnreadTab ? "unread" : "read")"
+                                                   asp-route-unreadPage="@(isUnreadTab ? i : Model.UnreadPage)"
+                                                   asp-route-readPage="@(!isUnreadTab ? i : Model.ReadPage)"
+                                                   class="notifications-page-link">
+                                                    @i
+                                                </a>
+                                            }
+                                        }
+
+                                        @if (currentPage < totalPages)
+                                        {
+                                            <a asp-controller="Notifications"
+                                               asp-action="Index"
+                                               asp-route-activeTab="@(isUnreadTab ? "unread" : "read")"
+                                               asp-route-unreadPage="@(isUnreadTab? currentPage + 1 : Model.UnreadPage)"
+                                               asp-route-readPage="@(!isUnreadTab ? currentPage + 1 : Model.ReadPage)"
+                                               class="notifications-page-link">
+                                                Next
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="notifications-page-disabled">Next</span>
+                                        }
                                     </div>
                                 </div>
                             }

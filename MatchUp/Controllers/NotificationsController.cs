@@ -14,33 +14,42 @@ namespace MatchUp.Controllers
     public class NotificationsController : Controller
     {
         private readonly AppDbContext _context;
-        private readonly UserManager<Player> _userManager;
+        private const int PageSize = 10;
 
-        public NotificationsController(AppDbContext context, UserManager<Player> userManager)
+        public NotificationsController(AppDbContext context)
         {
             _context = context;
-            _userManager = userManager;
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string activeTab = "unread", int unreadPage = 1, int readPage = 1)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
             if (!currentPlayerId.HasValue)
                 return Unauthorized();
 
+            const int pageSize = 5;
+
+            activeTab = string.Equals(activeTab, "read", StringComparison.OrdinalIgnoreCase)
+                ? "read"
+                : "unread";
+
+            if (unreadPage < 1)
+                unreadPage = 1;
+
+            if (readPage < 1)
+                readPage = 1;
+
             var ownerTeamIds = await _context.TeamMembers
                 .AsNoTracking()
                 .Where(x =>
                     x.PlayerId == currentPlayerId.Value &&
-                    x.IsActive &&
-                    x.Role == TeamRole.Owner)
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive)
                 .Select(x => x.TeamId)
                 .Distinct()
                 .ToListAsync();
-
-            var ownerTeamIdSet = ownerTeamIds.ToHashSet();
 
             var notifications = await _context.Notifications
                 .AsNoTracking()
@@ -73,35 +82,6 @@ namespace MatchUp.Controllers
                 .Include(x => x.MemberApprovals)
                 .ToDictionaryAsync(x => x.Id);
 
-            var gameRequestIds = notifications
-                .Where(x => x.TargetType == NotificationTargetType.GameRequest && x.TargetId.HasValue)
-                .Select(x => x.TargetId!.Value)
-                .Distinct()
-                .ToList();
-
-            var gameRequests = await _context.GameRequests
-                .AsNoTracking()
-                .Where(x => gameRequestIds.Contains(x.Id))
-                .Include(x => x.FromTeam)
-                .Include(x => x.ToTeam)
-                .ToDictionaryAsync(x => x.Id);
-
-            var resultProposalIds = notifications
-                .Where(x => x.TargetType == NotificationTargetType.MatchResultProposal && x.TargetId.HasValue)
-                .Select(x => x.TargetId!.Value)
-                .Distinct()
-                .ToList();
-
-            var resultProposals = await _context.MatchResultProposals
-                .AsNoTracking()
-                .Where(x => resultProposalIds.Contains(x.Id))
-                .Include(x => x.ProposedByTeam)
-                .Include(x => x.Match)
-                    .ThenInclude(x => x.HomeTeam)
-                .Include(x => x.Match)
-                    .ThenInclude(x => x.AwayTeam)
-                .ToDictionaryAsync(x => x.Id);
-
             var venueProposalIds = notifications
                 .Where(x => x.TargetType == NotificationTargetType.MatchVenueProposal && x.TargetId.HasValue)
                 .Select(x => x.TargetId!.Value)
@@ -117,167 +97,156 @@ namespace MatchUp.Controllers
                     .ThenInclude(x => x.AwayTeam)
                 .ToDictionaryAsync(x => x.Id);
 
-            var directMatchIds = notifications
+            var gameRequestIds = notifications
+                .Where(x => x.TargetType == NotificationTargetType.GameRequest && x.TargetId.HasValue)
+                .Select(x => x.TargetId!.Value)
+                .Distinct()
+                .ToList();
+
+            var gameRequests = await _context.GameRequests
+                .AsNoTracking()
+                .Where(x => gameRequestIds.Contains(x.Id))
+                .Include(x => x.FromTeam)
+                .Include(x => x.ToTeam)
+                .ToDictionaryAsync(x => x.Id);
+
+            var matchIds = notifications
                 .Where(x => x.TargetType == NotificationTargetType.Match && x.TargetId.HasValue)
                 .Select(x => x.TargetId!.Value)
                 .Distinct()
                 .ToList();
 
-            var directMatches = await _context.Matches
+            var matches = await _context.Matches
                 .AsNoTracking()
-                .Where(x => directMatchIds.Contains(x.Id))
+                .Where(x => matchIds.Contains(x.Id))
                 .Include(x => x.HomeTeam)
                 .Include(x => x.AwayTeam)
                 .ToDictionaryAsync(x => x.Id);
 
-            var matchesFromRequests = await _context.Matches
-                .AsNoTracking()
-                .Where(x => x.CreatedFromRequestId.HasValue && gameRequestIds.Contains(x.CreatedFromRequestId.Value))
-                .Include(x => x.HomeTeam)
-                .Include(x => x.AwayTeam)
-                .ToListAsync();
-
-            var requestMatchMap = matchesFromRequests
-                .Where(x => x.CreatedFromRequestId.HasValue)
-                .GroupBy(x => x.CreatedFromRequestId!.Value)
-                .ToDictionary(g => g.Key, g => g.First());
-
             var now = DateTime.UtcNow;
+
+            var allNotificationItems = notifications.Select(n =>
+            {
+                invites.TryGetValue(n.TargetId ?? Guid.Empty, out var invite);
+                submissions.TryGetValue(n.TargetId ?? Guid.Empty, out var submission);
+                venueProposals.TryGetValue(n.TargetId ?? Guid.Empty, out var venueProposal);
+                gameRequests.TryGetValue(n.TargetId ?? Guid.Empty, out var gameRequest);
+                matches.TryGetValue(n.TargetId ?? Guid.Empty, out var directMatch);
+
+                var inviteCanRespond =
+                    invite is not null &&
+                    invite.InvitedPlayerId == currentPlayerId.Value &&
+                    invite.Status == InviteStatus.Pending &&
+                    invite.ExpiresAtUtc > now;
+
+                var approvalRow = submission?.MemberApprovals
+                    .FirstOrDefault(x => x.PlayerId == currentPlayerId.Value);
+
+                var canApproveOpenToGame =
+                    submission is not null &&
+                    submission.Status == OpenToGameSubmissionStatus.PendingApprovals &&
+                    approvalRow is not null &&
+                    approvalRow.Status == ApprovalStatus.Pending;
+
+                var canRespondGameRequest =
+                    gameRequest is not null &&
+                    gameRequest.Status == GameRequestStatus.Pending &&
+                    ownerTeamIds.Contains(gameRequest.ToTeamId);
+
+                Guid? matchId = null;
+                string? matchTitle = null;
+
+                if (directMatch is not null)
+                {
+                    matchId = directMatch.Id;
+                    matchTitle = BuildMatchTitle(directMatch.HomeTeam?.Name, directMatch.AwayTeam?.Name);
+                }
+                else if (venueProposal?.Match is not null)
+                {
+                    matchId = venueProposal.MatchId;
+                    matchTitle = BuildMatchTitle(
+                        venueProposal.Match.HomeTeam?.Name,
+                        venueProposal.Match.AwayTeam?.Name);
+                }
+
+                return new NotificationListItemVm
+                {
+                    Id = n.Id,
+                    Title = n.Title,
+                    Message = n.Message,
+                    TypeText = n.Type.ToString(),
+                    IsRead = n.IsRead,
+                    CreatedAtUtc = n.CreatedAtUtc,
+
+                    CanAccept = inviteCanRespond,
+                    CanDecline = inviteCanRespond,
+
+                    TeamInviteId = invite?.Id,
+                    TeamInviteStatus = invite?.Status.ToString(),
+                    ProposedSquadNumber = invite?.ProposedSquadNumber,
+                    InviteExpiresAtUtc = invite?.ExpiresAtUtc,
+
+                    OpenToGameConfigId = submission?.Id,
+                    OpenToGameConfigStatus = submission?.Status.ToString(),
+                    CanApproveOpenToGame = canApproveOpenToGame,
+                    CanDeclineOpenToGame = canApproveOpenToGame,
+
+                    GameRequestId = gameRequest?.Id,
+                    GameRequestStatus = gameRequest?.Status.ToString(),
+                    GameRequestStartAtUtc = gameRequest?.StartAtUtc,
+                    GameRequestFormat = gameRequest?.Format.ToString(),
+                    GameRequestDurationMinutes = gameRequest?.DurationMinutes,
+                    CanAcceptGameRequest = canRespondGameRequest,
+                    CanDeclineGameRequest = canRespondGameRequest,
+
+                    TeamName = invite?.Team?.Name ?? submission?.Team?.Name ?? gameRequest?.ToTeam?.Name,
+                    IsExpired = invite is not null && invite.ExpiresAtUtc <= now,
+
+                    MatchId = matchId,
+                    MatchTitle = matchTitle,
+                    CanOpenMatch = matchId.HasValue
+                };
+            }).ToList();
+
+            var unreadItems = allNotificationItems
+                .Where(x => !x.IsRead)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .ToList();
+
+            var readItems = allNotificationItems
+                .Where(x => x.IsRead)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .ToList();
+
+            var unreadTotalPages = unreadItems.Count == 0
+                ? 1
+                : (int)Math.Ceiling(unreadItems.Count / (double)pageSize);
+
+            var readTotalPages = readItems.Count == 0
+                ? 1
+                : (int)Math.Ceiling(readItems.Count / (double)pageSize);
+
+            if (unreadPage > unreadTotalPages)
+                unreadPage = unreadTotalPages;
+
+            if (readPage > readTotalPages)
+                readPage = readTotalPages;
 
             var vm = new NotificationsIndexVm
             {
-                UnreadCount = notifications.Count(x => !x.IsRead),
-                Notifications = notifications.Select(n =>
-                {
-                    invites.TryGetValue(n.TargetId ?? Guid.Empty, out var invite);
-                    submissions.TryGetValue(n.TargetId ?? Guid.Empty, out var submission);
-                    gameRequests.TryGetValue(n.TargetId ?? Guid.Empty, out var gameRequest);
-                    resultProposals.TryGetValue(n.TargetId ?? Guid.Empty, out var resultProposal);
-                    venueProposals.TryGetValue(n.TargetId ?? Guid.Empty, out var venueProposal);
-                    directMatches.TryGetValue(n.TargetId ?? Guid.Empty, out var directMatch);
+                ActiveTab = activeTab,
 
-                    var isInviteNotification =
-                        n.TargetType == NotificationTargetType.TeamInvite &&
-                        invite is not null;
+                UnreadCount = unreadItems.Count,
+                ReadCount = readItems.Count,
 
-                    var canAcceptOrDeclineInvite =
-                        isInviteNotification &&
-                        invite!.InvitedPlayerId == currentPlayerId.Value &&
-                        invite.Status == InviteStatus.Pending &&
-                        invite.ExpiresAtUtc > now;
+                UnreadPage = unreadPage,
+                ReadPage = readPage,
 
-                    var approvalRow = submission?.MemberApprovals
-                        .FirstOrDefault(x => x.PlayerId == currentPlayerId.Value);
+                UnreadTotalPages = unreadTotalPages,
+                ReadTotalPages = readTotalPages,
 
-                    var canApproveOpenToGame =
-                        n.Type == NotificationType.OpenToGameApprovalRequired &&
-                        submission is not null &&
-                        submission.Status == OpenToGameSubmissionStatus.PendingApprovals &&
-                        approvalRow is not null &&
-                        approvalRow.Status == ApprovalStatus.Pending;
-
-                    var canDeclineOpenToGame = canApproveOpenToGame;
-
-                    var canAcceptGameRequest =
-                        n.Type == NotificationType.GameRequestReceived &&
-                        gameRequest is not null &&
-                        gameRequest.Status == GameRequestStatus.Pending;
-
-                    var canDeclineGameRequest = canAcceptGameRequest;
-
-                    Guid? resultReviewTeamId = null;
-
-                    if (resultProposal?.Match is not null)
-                    {
-                        resultReviewTeamId = resultProposal.ProposedByTeamId == resultProposal.Match.HomeTeamId
-                            ? resultProposal.Match.AwayTeamId
-                            : resultProposal.Match.HomeTeamId;
-                    }
-
-                    var canReviewResultProposal =
-                        n.Type == NotificationType.MatchResultProposalReceived &&
-                        resultProposal is not null &&
-                        resultProposal.Status == ProposalStatus.Pending &&
-                        resultReviewTeamId.HasValue &&
-                        ownerTeamIdSet.Contains(resultReviewTeamId.Value);
-
-                    Match? resolvedMatch = null;
-
-                    if (n.TargetType == NotificationTargetType.Match && directMatch is not null)
-                    {
-                        resolvedMatch = directMatch;
-                    }
-                    else if (n.TargetType == NotificationTargetType.MatchVenueProposal && venueProposal?.Match is not null)
-                    {
-                        resolvedMatch = venueProposal.Match;
-                    }
-                    else if (n.TargetType == NotificationTargetType.MatchResultProposal && resultProposal?.Match is not null)
-                    {
-                        resolvedMatch = resultProposal.Match;
-                    }
-                    else if (n.TargetType == NotificationTargetType.GameRequest &&
-                             n.TargetId.HasValue &&
-                             requestMatchMap.TryGetValue(n.TargetId.Value, out var requestMatch))
-                    {
-                        resolvedMatch = requestMatch;
-                    }
-
-                    var matchId = resolvedMatch?.Id;
-                    var matchTitle = resolvedMatch is not null
-                        ? $"{resolvedMatch.HomeTeam?.Name ?? "Unknown"} vs {resolvedMatch.AwayTeam?.Name ?? "Unknown"}"
-                        : null;
-
-                    return new NotificationListItemVm
-                    {
-                        Id = n.Id,
-                        Title = n.Title,
-                        Message = n.Message,
-                        TypeText = n.Type.ToString(),
-                        IsRead = n.IsRead,
-                        CreatedAtUtc = n.CreatedAtUtc,
-
-                        CanAccept = canAcceptOrDeclineInvite,
-                        CanDecline = canAcceptOrDeclineInvite,
-
-                        TeamInviteId = invite?.Id,
-                        TeamInviteStatus = invite?.Status.ToString(),
-                        ProposedSquadNumber = invite?.ProposedSquadNumber,
-                        InviteExpiresAtUtc = invite?.ExpiresAtUtc,
-
-                        OpenToGameSubmissionId = submission?.Id,
-                        OpenToGameSubmissionStatus = submission?.Status.ToString(),
-
-                        CanApproveOpenToGame = canApproveOpenToGame,
-                        CanDeclineOpenToGame = canDeclineOpenToGame,
-
-                        GameRequestId = gameRequest?.Id,
-                        GameRequestStatus = gameRequest?.Status.ToString(),
-                        GameRequestStartAtUtc = gameRequest?.StartAtUtc,
-                        GameRequestFormat = gameRequest?.Format.ToString(),
-                        GameRequestDurationMinutes = gameRequest?.DurationMinutes,
-
-                        CanAcceptGameRequest = canAcceptGameRequest,
-                        CanDeclineGameRequest = canDeclineGameRequest,
-
-                        MatchResultProposalId = resultProposal?.Id,
-                        MatchResultProposalStatus = resultProposal?.Status.ToString(),
-                        ProposedHomeTeamScore = resultProposal?.ProposedHomeTeamScore,
-                        ProposedAwayTeamScore = resultProposal?.ProposedAwayTeamScore,
-                        CanApproveMatchResultProposal = canReviewResultProposal,
-                        CanDeclineMatchResultProposal = canReviewResultProposal,
-
-                        TeamName = invite?.Team?.Name
-                                   ?? submission?.Team?.Name
-                                   ?? gameRequest?.FromTeam?.Name
-                                   ?? resultProposal?.ProposedByTeam?.Name,
-
-                        IsExpired = invite is not null && invite.ExpiresAtUtc <= now,
-
-                        MatchId = matchId,
-                        MatchTitle = matchTitle,
-                        CanOpenMatch = matchId.HasValue
-                    };
-                }).ToList()
+                UnreadNotifications = PaginateList(unreadItems, unreadPage, pageSize),
+                ReadNotifications = PaginateList(readItems, readPage, pageSize)
             };
 
             return View(vm);
@@ -285,7 +254,11 @@ namespace MatchUp.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> MarkAsRead(Guid notificationId)
+        public async Task<IActionResult> MarkAsRead(
+            Guid notificationId,
+            string activeTab = "unread",
+            int unreadPage = 1,
+            int readPage = 1)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
@@ -305,12 +278,17 @@ namespace MatchUp.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToIndexTab(activeTab, unreadPage, readPage);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AcceptTeamInvite(Guid inviteId, Guid notificationId)
+        public async Task<IActionResult> AcceptTeamInvite(
+            Guid inviteId,
+            Guid notificationId,
+            string activeTab = "unread",
+            int unreadPage = 1,
+            int readPage = 1)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
@@ -324,7 +302,7 @@ namespace MatchUp.Controllers
             if (invite is null)
             {
                 TempData["Error"] = "Invite not found.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             if (invite.InvitedPlayerId != currentPlayerId.Value)
@@ -346,13 +324,13 @@ namespace MatchUp.Controllers
                 await _context.SaveChangesAsync();
 
                 TempData["Error"] = "This invite has expired.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             if (invite.Status != InviteStatus.Pending)
             {
                 TempData["Error"] = "This invite is no longer pending.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             var isAlreadyMember = await _context.TeamMembers
@@ -364,7 +342,7 @@ namespace MatchUp.Controllers
             if (isAlreadyMember)
             {
                 TempData["Error"] = "You are already an active member of this team.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             var squadNumberTaken = await _context.TeamMembers
@@ -376,7 +354,7 @@ namespace MatchUp.Controllers
             if (squadNumberTaken)
             {
                 TempData["Error"] = "This squad number is already taken in the team.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             var newMembership = new TeamMember
@@ -422,12 +400,17 @@ namespace MatchUp.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Invite accepted successfully.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToIndexTab(activeTab, unreadPage, readPage);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeclineTeamInvite(Guid inviteId, Guid notificationId)
+        public async Task<IActionResult> DeclineTeamInvite(
+            Guid inviteId,
+            Guid notificationId,
+            string activeTab = "unread",
+            int unreadPage = 1,
+            int readPage = 1)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
@@ -441,7 +424,7 @@ namespace MatchUp.Controllers
             if (invite is null)
             {
                 TempData["Error"] = "Invite not found.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             if (invite.InvitedPlayerId != currentPlayerId.Value)
@@ -463,13 +446,13 @@ namespace MatchUp.Controllers
                 await _context.SaveChangesAsync();
 
                 TempData["Error"] = "This invite has expired.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             if (invite.Status != InviteStatus.Pending)
             {
                 TempData["Error"] = "This invite is no longer pending.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             invite.Status = InviteStatus.Declined;
@@ -503,12 +486,17 @@ namespace MatchUp.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Invite declined.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToIndexTab(activeTab, unreadPage, readPage);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ApproveOpenToGame(Guid submissionId, Guid notificationId)
+        public async Task<IActionResult> ApproveOpenToGame(
+            Guid submissionId,
+            Guid notificationId,
+            string activeTab = "unread",
+            int unreadPage = 1,
+            int readPage = 1)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
@@ -523,7 +511,7 @@ namespace MatchUp.Controllers
             if (submission is null)
             {
                 TempData["Error"] = "Open To Game submission not found.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             var approval = submission.MemberApprovals
@@ -534,7 +522,7 @@ namespace MatchUp.Controllers
                 approval.Status != ApprovalStatus.Pending)
             {
                 TempData["Error"] = "This approval request is no longer available.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             approval.Status = ApprovalStatus.Approved;
@@ -594,12 +582,17 @@ namespace MatchUp.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Approval accepted.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToIndexTab(activeTab, unreadPage, readPage);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeclineOpenToGame(Guid submissionId, Guid notificationId)
+        public async Task<IActionResult> DeclineOpenToGame(
+            Guid submissionId,
+            Guid notificationId,
+            string activeTab = "unread",
+            int unreadPage = 1,
+            int readPage = 1)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
@@ -614,7 +607,7 @@ namespace MatchUp.Controllers
             if (submission is null)
             {
                 TempData["Error"] = "Open To Game submission not found.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             var approval = submission.MemberApprovals
@@ -625,7 +618,7 @@ namespace MatchUp.Controllers
                 approval.Status != ApprovalStatus.Pending)
             {
                 TempData["Error"] = "This approval request is no longer available.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             approval.Status = ApprovalStatus.Declined;
@@ -684,12 +677,17 @@ namespace MatchUp.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Approval declined.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToIndexTab(activeTab, unreadPage, readPage);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AcceptGameRequest(Guid gameRequestId, Guid notificationId)
+        public async Task<IActionResult> AcceptGameRequest(
+            Guid gameRequestId,
+            Guid notificationId,
+            string activeTab = "unread",
+            int unreadPage = 1,
+            int readPage = 1)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
@@ -704,13 +702,13 @@ namespace MatchUp.Controllers
             if (gameRequest is null)
             {
                 TempData["Error"] = "Game request not found.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             if (gameRequest.Status != GameRequestStatus.Pending)
             {
                 TempData["Error"] = "This game request is no longer pending.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             var isOwnerOfTargetTeam = await _context.TeamMembers
@@ -729,7 +727,7 @@ namespace MatchUp.Controllers
             if (existingMatch)
             {
                 TempData["Error"] = "A match has already been created from this request.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             var defaultStadium = await _context.Stadiums
@@ -746,9 +744,7 @@ namespace MatchUp.Controllers
                 Format = gameRequest.Format,
                 Status = MatchStatus.Scheduled,
                 CreatedFromRequestId = gameRequest.Id,
-                VenueStatus = defaultStadium is not null
-                    ? VenueStatus.Confirmed
-                    : VenueStatus.Unset,
+                VenueStatus = defaultStadium is not null ? VenueStatus.Confirmed : VenueStatus.Unset,
                 ConfirmedVenueKind = defaultStadium is not null ? VenueKind.Stadium : VenueKind.Custom,
                 ConfirmedStadiumId = defaultStadium?.Id,
                 ConfirmedCustomVenueName = defaultStadium is null ? "Venue to be confirmed" : null,
@@ -829,12 +825,17 @@ namespace MatchUp.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Game request accepted and match created successfully.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToIndexTab(activeTab, unreadPage, readPage);
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeclineGameRequest(Guid gameRequestId, Guid notificationId)
+        public async Task<IActionResult> DeclineGameRequest(
+            Guid gameRequestId,
+            Guid notificationId,
+            string activeTab = "unread",
+            int unreadPage = 1,
+            int readPage = 1)
         {
             var currentPlayerId = GetCurrentPlayerId();
 
@@ -849,13 +850,13 @@ namespace MatchUp.Controllers
             if (gameRequest is null)
             {
                 TempData["Error"] = "Game request not found.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             if (gameRequest.Status != GameRequestStatus.Pending)
             {
                 TempData["Error"] = "This game request is no longer pending.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToIndexTab(activeTab, unreadPage, readPage);
             }
 
             var isOwnerOfTargetTeam = await _context.TeamMembers
@@ -902,221 +903,7 @@ namespace MatchUp.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Game request declined.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ApproveMatchResultProposal(Guid resultProposalId, Guid notificationId)
-        {
-            var currentPlayerId = GetCurrentPlayerId();
-
-            if (!currentPlayerId.HasValue)
-                return Unauthorized();
-
-            var proposal = await _context.MatchResultProposals
-                .Include(x => x.Match)
-                    .ThenInclude(x => x.HomeTeam)
-                .Include(x => x.Match)
-                    .ThenInclude(x => x.AwayTeam)
-                .Include(x => x.ProposedByTeam)
-                .FirstOrDefaultAsync(x => x.Id == resultProposalId);
-
-            if (proposal is null)
-            {
-                TempData["Error"] = "Match result proposal not found.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            if (proposal.Status != ProposalStatus.Pending)
-            {
-                TempData["Error"] = "This result proposal is no longer pending.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var reviewTeamId = proposal.ProposedByTeamId == proposal.Match!.HomeTeamId
-                ? proposal.Match.AwayTeamId
-                : proposal.Match.HomeTeamId;
-
-            var isOwner = await _context.TeamMembers
-                .AnyAsync(x =>
-                    x.TeamId == reviewTeamId &&
-                    x.PlayerId == currentPlayerId.Value &&
-                    x.Role == TeamRole.Owner &&
-                    x.IsActive);
-
-            if (!isOwner)
-                return Forbid();
-
-            var now = DateTime.UtcNow;
-
-            proposal.Status = ProposalStatus.Accepted;
-            proposal.RespondedAtUtc = now;
-
-            proposal.Match.HomeTeamScore = proposal.ProposedHomeTeamScore;
-            proposal.Match.AwayTeamScore = proposal.ProposedAwayTeamScore;
-            proposal.Match.ResultStatus = ResultStatus.Confirmed;
-            proposal.Match.Status = MatchStatus.Completed;
-            proposal.Match.CompletedAtUtc = now;
-
-            var notification = await _context.Notifications
-                .FirstOrDefaultAsync(x => x.Id == notificationId && x.PlayerId == currentPlayerId.Value);
-
-            if (notification is not null && !notification.IsRead)
-            {
-                notification.IsRead = true;
-                notification.ReadAtUtc = now;
-            }
-
-            var relatedNotifications = await _context.Notifications
-                .Where(x =>
-                    x.TargetType == NotificationTargetType.MatchResultProposal &&
-                    x.TargetId == proposal.Id &&
-                    !x.IsRead)
-                .ToListAsync();
-
-            foreach (var item in relatedNotifications)
-            {
-                item.IsRead = true;
-                item.ReadAtUtc = now;
-            }
-
-            var activePlayerIds = await _context.TeamMembers
-                .Where(x =>
-                    x.IsActive &&
-                    (x.TeamId == proposal.Match.HomeTeamId || x.TeamId == proposal.Match.AwayTeamId))
-                .Select(x => x.PlayerId)
-                .Distinct()
-                .ToListAsync();
-
-            foreach (var playerId in activePlayerIds)
-            {
-                _context.Notifications.Add(new Notification
-                {
-                    PlayerId = playerId,
-                    Type = NotificationType.MatchResultConfirmed,
-                    Title = "Match result confirmed",
-                    Message = $"{proposal.Match.HomeTeam?.Name} {proposal.ProposedHomeTeamScore} - {proposal.ProposedAwayTeamScore} {proposal.Match.AwayTeam?.Name}",
-                    TargetType = NotificationTargetType.Match,
-                    TargetId = proposal.Match.Id,
-                    IsRead = false
-                });
-            }
-
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Match result approved successfully.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeclineMatchResultProposal(Guid resultProposalId, Guid notificationId)
-        {
-            var currentPlayerId = GetCurrentPlayerId();
-
-            if (!currentPlayerId.HasValue)
-                return Unauthorized();
-
-            var proposal = await _context.MatchResultProposals
-                .Include(x => x.Match)
-                    .ThenInclude(x => x.HomeTeam)
-                .Include(x => x.Match)
-                    .ThenInclude(x => x.AwayTeam)
-                .Include(x => x.ProposedByTeam)
-                .FirstOrDefaultAsync(x => x.Id == resultProposalId);
-
-            if (proposal is null)
-            {
-                TempData["Error"] = "Match result proposal not found.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            if (proposal.Status != ProposalStatus.Pending)
-            {
-                TempData["Error"] = "This result proposal is no longer pending.";
-                return RedirectToAction(nameof(Index));
-            }
-
-            var reviewTeamId = proposal.ProposedByTeamId == proposal.Match!.HomeTeamId
-                ? proposal.Match.AwayTeamId
-                : proposal.Match.HomeTeamId;
-
-            var isOwner = await _context.TeamMembers
-                .AnyAsync(x =>
-                    x.TeamId == reviewTeamId &&
-                    x.PlayerId == currentPlayerId.Value &&
-                    x.Role == TeamRole.Owner &&
-                    x.IsActive);
-
-            if (!isOwner)
-                return Forbid();
-
-            var now = DateTime.UtcNow;
-
-            proposal.Status = ProposalStatus.Declined;
-            proposal.RespondedAtUtc = now;
-
-            var notification = await _context.Notifications
-                .FirstOrDefaultAsync(x => x.Id == notificationId && x.PlayerId == currentPlayerId.Value);
-
-            if (notification is not null && !notification.IsRead)
-            {
-                notification.IsRead = true;
-                notification.ReadAtUtc = now;
-            }
-
-            var relatedNotifications = await _context.Notifications
-                .Where(x =>
-                    x.TargetType == NotificationTargetType.MatchResultProposal &&
-                    x.TargetId == proposal.Id &&
-                    !x.IsRead)
-                .ToListAsync();
-
-            foreach (var item in relatedNotifications)
-            {
-                item.IsRead = true;
-                item.ReadAtUtc = now;
-            }
-
-            var stillHasPending = await _context.MatchResultProposals
-                .AnyAsync(x =>
-                    x.MatchId == proposal.MatchId &&
-                    x.Status == ProposalStatus.Pending &&
-                    x.Id != proposal.Id);
-
-            if (!stillHasPending)
-            {
-                proposal.Match.ResultStatus = ResultStatus.Unset;
-            }
-
-            var proposerOwnerIds = await _context.TeamMembers
-                .Where(x =>
-                    x.TeamId == proposal.ProposedByTeamId &&
-                    x.IsActive &&
-                    x.Role == TeamRole.Owner)
-                .Select(x => x.PlayerId)
-                .Distinct()
-                .ToListAsync();
-
-            foreach (var ownerId in proposerOwnerIds)
-            {
-                _context.Notifications.Add(new Notification
-                {
-                    PlayerId = ownerId,
-                    Type = NotificationType.MatchResultProposalDeclined,
-                    Title = "Match result proposal declined",
-                    Message = $"{proposal.Match.HomeTeam?.Name} vs {proposal.Match.AwayTeam?.Name}: your proposed result was declined.",
-                    TargetType = NotificationTargetType.MatchResultProposal,
-                    TargetId = proposal.Id,
-                    IsRead = false
-                });
-            }
-
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Match result proposal declined.";
-            return RedirectToAction(nameof(Index));
+            return RedirectToIndexTab(activeTab, unreadPage, readPage);
         }
 
         private async Task CloseTeamOpenToGameAsync(Guid teamId)
@@ -1129,6 +916,47 @@ namespace MatchUp.Controllers
 
             team.IsOpenToGame = false;
             team.ActiveOpenToGameSubmissionId = null;
+        }
+
+        private IActionResult RedirectToIndexTab(string activeTab, int unreadPage, int readPage)
+        {
+            return RedirectToAction(nameof(Index), new
+            {
+                activeTab = NormalizeTab(activeTab),
+                unreadPage = Math.Max(1, unreadPage),
+                readPage = Math.Max(1, readPage)
+            });
+        }
+
+        private static string NormalizeTab(string? activeTab)
+        {
+            return string.Equals(activeTab, "read", StringComparison.OrdinalIgnoreCase)
+                ? "read"
+                : "unread";
+        }
+
+        private static int ClampPage(int page, int totalPages)
+        {
+            if (page < 1)
+                return 1;
+
+            if (page > totalPages)
+                return totalPages;
+
+            return page;
+        }
+
+        private static List<T> PaginateList<T>(List<T> source, int page, int pageSize)
+        {
+            return source
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+        }
+
+        private static string BuildMatchTitle(string? homeTeamName, string? awayTeamName)
+        {
+            return $"{homeTeamName ?? "Unknown Team"} vs {awayTeamName ?? "Unknown Team"}";
         }
 
         private Guid? GetCurrentPlayerId()

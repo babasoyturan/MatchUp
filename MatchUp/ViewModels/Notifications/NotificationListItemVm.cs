@@ -18,9 +18,8 @@
         public int? ProposedSquadNumber { get; set; }
         public DateTime? InviteExpiresAtUtc { get; set; }
 
-        public Guid? OpenToGameSubmissionId { get; set; }
-        public string? OpenToGameSubmissionStatus { get; set; }
-
+        public Guid? OpenToGameConfigId { get; set; }
+        public string? OpenToGameConfigStatus { get; set; }
         public bool CanApproveOpenToGame { get; set; }
         public bool CanDeclineOpenToGame { get; set; }
 
@@ -29,17 +28,8 @@
         public DateTime? GameRequestStartAtUtc { get; set; }
         public string? GameRequestFormat { get; set; }
         public int? GameRequestDurationMinutes { get; set; }
-
         public bool CanAcceptGameRequest { get; set; }
         public bool CanDeclineGameRequest { get; set; }
-
-        public Guid? MatchResultProposalId { get; set; }
-        public string? MatchResultProposalStatus { get; set; }
-        public int? ProposedHomeTeamScore { get; set; }
-        public int? ProposedAwayTeamScore { get; set; }
-
-        public bool CanApproveMatchResultProposal { get; set; }
-        public bool CanDeclineMatchResultProposal { get; set; }
 
         public string? TeamName { get; set; }
         public bool IsExpired { get; set; }
