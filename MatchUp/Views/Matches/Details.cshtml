@@ -96,6 +96,15 @@
         padding-top: 25px;
         padding-bottom: 35px;
     }
+
+    .proposal-action-form {
+        display: inline-block;
+        margin: 2px 4px 2px 0;
+    }
+
+    .proposal-action-btn {
+        min-width: 90px;
+    }
 </style>
 
 <div class="section-title single-result" style="background:url('@heroImage') center center / cover no-repeat;">
@@ -273,6 +282,7 @@
                                                             <th class="text-center">Status</th>
                                                             <th class="text-center">Created</th>
                                                             <th class="text-center">Responded</th>
+                                                            <th class="text-center">Actions</th>
                                                         </tr>
                                                     </thead>
 
@@ -290,8 +300,42 @@
                                                                                                                                 ? proposal.RespondedAtUtc.Value.ToString("dd MMM yyyy HH:mm")
                                                                                                                                 : "-")
                                                         </td>
-                                                    </tr>
-                                                                                                        }
+                                                        <td class="text-center">
+                                                            @if (proposal.CanApprove)
+                                                                    {
+                                                                        <form asp-controller="Matches"
+                                                                              asp-action="ApproveVenueProposal"
+                                                                              method="post"
+                                                                              class="proposal-action-form">
+                                                                            @Html.AntiForgeryToken()
+                                                                            <input type="hidden" name="proposalId" value="@proposal.ProposalId" />
+                                                                            <button type="submit" class="btn btn-primary proposal-action-btn">
+                                                                                Approve
+                                                                            </button>
+                                                                        </form>
+                                                                    }
+
+                                                                    @if (proposal.CanDecline)
+                                                                    {
+                                                                        <form asp-controller="Matches"
+                                                                              asp-action="DeclineVenueProposal"
+                                                                              method="post"
+                                                                              class="proposal-action-form">
+                                                                            @Html.AntiForgeryToken()
+                                                                            <input type="hidden" name="proposalId" value="@proposal.ProposalId" />
+                                                                            <button type="submit" class="btn btn-danger proposal-action-btn">
+                                                                                Decline
+                                                                            </button>
+                                                                        </form>
+                                                                    }
+
+                                                                    @if (!proposal.CanApprove && !proposal.CanDecline)
+                                                                    {
+                                                                        <span>-</span>
+                                                                    }
+                                                                </td>
+                                                            </tr>
+                                                        }
                                                     </tbody>
                                                 </table>
                                             </div>

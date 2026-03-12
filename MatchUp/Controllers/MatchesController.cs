@@ -40,24 +40,21 @@ namespace MatchUp.Controllers
 
             var currentPlayerId = GetCurrentPlayerId();
 
-            var ownedTeamIds = new HashSet<Guid>();
+            var isHomeOwnerView = currentPlayerId.HasValue && await _context.TeamMembers
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.TeamId == match.HomeTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
 
-            if (currentPlayerId.HasValue)
-            {
-                var ids = await _context.TeamMembers
-                    .AsNoTracking()
-                    .Where(x =>
-                        x.PlayerId == currentPlayerId.Value &&
-                        x.Role == TeamRole.Owner &&
-                        x.IsActive)
-                    .Select(x => x.TeamId)
-                    .ToListAsync();
-
-                ownedTeamIds = ids.ToHashSet();
-            }
-
-            var isHomeOwnerView = ownedTeamIds.Contains(match.HomeTeamId);
-            var isAwayOwnerView = ownedTeamIds.Contains(match.AwayTeamId);
+            var isAwayOwnerView = currentPlayerId.HasValue && await _context.TeamMembers
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.TeamId == match.AwayTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
 
             var hasPendingVenueProposal = match.VenueProposals.Any(x => x.Status == ProposalStatus.Pending);
 
@@ -67,7 +64,7 @@ namespace MatchUp.Controllers
                 match.StartAtUtc > DateTime.UtcNow &&
                 !hasPendingVenueProposal;
 
-            var vm = new MatchDetailsVm
+            var vm = new MatchUp.ViewModels.Matches.MatchDetailsVm
             {
                 Id = match.Id,
 
@@ -84,29 +81,34 @@ namespace MatchUp.Controllers
 
                 Format = match.Format.ToString(),
                 Status = match.Status.ToString(),
-                VenueStatus = GetVenueStatusText(match.VenueStatus),
+                VenueStatus = match.VenueStatus.ToString(),
                 ResultStatus = match.ResultStatus.ToString(),
 
-                CurrentVenueText = BuildConfirmedVenueText(match),
-                VenueHeroImageUrl = BuildConfirmedVenueImageUrl(match),
+                CurrentVenueText = BuildCurrentVenueText(match),
+                VenueHeroImageUrl = BuildVenueHeroImageUrl(match),
 
                 IsHomeOwnerView = isHomeOwnerView,
                 IsAwayOwnerView = isAwayOwnerView,
+
                 CanProposeVenue = canProposeVenue,
                 HasPendingVenueProposal = hasPendingVenueProposal,
 
                 VenueProposals = match.VenueProposals
                     .OrderByDescending(x => x.CreatedAtUtc)
-                    .Select(x => new MatchVenueProposalListItemVm
+                    .Select(x => new MatchUp.ViewModels.Matches.MatchVenueProposalListItemVm
                     {
-                        Id = x.Id,
-                        ProposedByTeamId = x.ProposedByTeamId,
-                        ProposedByTeamName = x.ProposedByTeam?.Name ?? "Unknown Team",
+                        ProposalId = x.Id,
+                        ProposedByTeamName = x.ProposedByTeam != null
+                            ? x.ProposedByTeam.Name
+                            : "Unknown Team",
                         VenueKindText = x.VenueKind.ToString(),
                         VenueText = BuildProposalVenueText(x),
                         StatusText = x.Status.ToString(),
                         CreatedAtUtc = x.CreatedAtUtc,
-                        RespondedAtUtc = x.RespondedAtUtc
+                        RespondedAtUtc = x.RespondedAtUtc,
+
+                        CanApprove = CanRespondToVenueProposal(match, x, isHomeOwnerView, isAwayOwnerView),
+                        CanDecline = CanRespondToVenueProposal(match, x, isHomeOwnerView, isAwayOwnerView)
                     })
                     .ToList()
             };
@@ -292,11 +294,11 @@ namespace MatchUp.Controllers
 
             match.VenueStatus = VenueStatus.Proposed;
 
-            var opponentTeamId = proposedByTeamId.Value == match.HomeTeamId
+            var opponentTeamId = proposal.ProposedByTeamId == match.HomeTeamId
                 ? match.AwayTeamId
                 : match.HomeTeamId;
 
-            var opponentOwners = await _context.TeamMembers
+            var opponentOwnerIds = await _context.TeamMembers
                 .Where(x =>
                     x.TeamId == opponentTeamId &&
                     x.Role == TeamRole.Owner &&
@@ -305,18 +307,15 @@ namespace MatchUp.Controllers
                 .Distinct()
                 .ToListAsync();
 
-            var proposerTeamName = proposedByTeamId.Value == match.HomeTeamId
-                ? match.HomeTeam?.Name ?? "Unknown Team"
-                : match.AwayTeam?.Name ?? "Unknown Team";
-
-            foreach (var ownerPlayerId in opponentOwners)
+            foreach (var ownerId in opponentOwnerIds)
             {
                 _context.Notifications.Add(new Notification
                 {
-                    PlayerId = ownerPlayerId,
+                    Id = Guid.NewGuid(),
+                    PlayerId = ownerId,
                     Type = NotificationType.MatchVenueProposalReceived,
-                    Title = "Venue proposal received",
-                    Message = $"{proposerTeamName} proposed a venue change for the match scheduled on {match.StartAtUtc:dd MMM yyyy HH:mm}.",
+                    Title = "New venue proposal received",
+                    Message = $"A new venue proposal was submitted for {match.HomeTeam!.Name} vs {match.AwayTeam!.Name}.",
                     TargetType = NotificationTargetType.MatchVenueProposal,
                     TargetId = proposal.Id,
                     IsRead = false
@@ -327,6 +326,240 @@ namespace MatchUp.Controllers
 
             TempData["Success"] = "Venue proposal submitted successfully.";
             return RedirectToAction(nameof(Details), new { id = vm.MatchId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApproveVenueProposal(Guid proposalId)
+        {
+            var currentPlayerId = GetCurrentPlayerId();
+
+            if (!currentPlayerId.HasValue)
+                return Unauthorized();
+
+            var proposal = await _context.MatchVenueProposals
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.HomeTeam)
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.AwayTeam)
+                .Include(x => x.ProposedStadium)
+                .FirstOrDefaultAsync(x => x.Id == proposalId);
+
+            if (proposal is null)
+                return NotFound();
+
+            var match = proposal.Match;
+            if (match is null)
+                return NotFound();
+
+            if (proposal.Status != ProposalStatus.Pending)
+            {
+                TempData["Error"] = "This venue proposal is no longer pending.";
+                return RedirectToAction(nameof(Details), new { id = match.Id });
+            }
+
+            if (match.Status != MatchStatus.Scheduled || match.StartAtUtc <= DateTime.UtcNow)
+            {
+                TempData["Error"] = "This match is no longer available for venue approval.";
+                return RedirectToAction(nameof(Details), new { id = match.Id });
+            }
+
+            var isHomeOwner = await _context.TeamMembers
+                .AnyAsync(x =>
+                    x.TeamId == match.HomeTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            var isAwayOwner = await _context.TeamMembers
+                .AnyAsync(x =>
+                    x.TeamId == match.AwayTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            var canRespond =
+                (proposal.ProposedByTeamId == match.HomeTeamId && isAwayOwner) ||
+                (proposal.ProposedByTeamId == match.AwayTeamId && isHomeOwner);
+
+            if (!canRespond)
+                return Forbid();
+
+            proposal.Status = ProposalStatus.Accepted;
+            proposal.RespondedAtUtc = DateTime.UtcNow;
+
+            if (proposal.VenueKind == VenueKind.Stadium)
+            {
+                match.ConfirmedVenueKind = VenueKind.Stadium;
+                match.ConfirmedStadiumId = proposal.ProposedStadiumId;
+
+                match.ConfirmedCustomVenueName = null;
+                match.ConfirmedCustomFormattedAddress = null;
+                match.ConfirmedCustomLatitude = null;
+                match.ConfirmedCustomLongitude = null;
+            }
+            else
+            {
+                match.ConfirmedVenueKind = VenueKind.Custom;
+                match.ConfirmedStadiumId = null;
+
+                match.ConfirmedCustomVenueName = proposal.ProposedCustomVenueName;
+                match.ConfirmedCustomFormattedAddress = proposal.ProposedCustomFormattedAddress;
+                match.ConfirmedCustomLatitude = proposal.ProposedCustomLatitude;
+                match.ConfirmedCustomLongitude = proposal.ProposedCustomLongitude;
+            }
+
+            match.VenueStatus = VenueStatus.Confirmed;
+
+            var otherPendingProposals = await _context.MatchVenueProposals
+                .Where(x =>
+                    x.MatchId == match.Id &&
+                    x.Id != proposal.Id &&
+                    x.Status == ProposalStatus.Pending)
+                .ToListAsync();
+
+            foreach (var item in otherPendingProposals)
+            {
+                item.Status = ProposalStatus.Declined;
+                item.RespondedAtUtc = DateTime.UtcNow;
+            }
+
+            var proposerOwnerIds = await _context.TeamMembers
+                .Where(x =>
+                    x.TeamId == proposal.ProposedByTeamId &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive)
+                .Select(x => x.PlayerId)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var ownerId in proposerOwnerIds)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    PlayerId = ownerId,
+                    Type = NotificationType.MatchVenueProposalApproved,
+                    Title = "Venue proposal approved",
+                    Message = $"Your venue proposal for {match.HomeTeam?.Name} vs {match.AwayTeam?.Name} has been approved.",
+                    TargetType = NotificationTargetType.MatchVenueProposal,
+                    TargetId = proposal.Id,
+                    IsRead = false
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Venue proposal approved successfully.";
+            return RedirectToAction(nameof(Details), new { id = match.Id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeclineVenueProposal(Guid proposalId)
+        {
+            var currentPlayerId = GetCurrentPlayerId();
+
+            if (!currentPlayerId.HasValue)
+                return Unauthorized();
+
+            var proposal = await _context.MatchVenueProposals
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.HomeTeam)
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.AwayTeam)
+                .FirstOrDefaultAsync(x => x.Id == proposalId);
+
+            if (proposal is null)
+                return NotFound();
+
+            var match = proposal.Match;
+            if (match is null)
+                return NotFound();
+
+            if (proposal.Status != ProposalStatus.Pending)
+            {
+                TempData["Error"] = "This venue proposal is no longer pending.";
+                return RedirectToAction(nameof(Details), new { id = match.Id });
+            }
+
+            if (match.Status != MatchStatus.Scheduled || match.StartAtUtc <= DateTime.UtcNow)
+            {
+                TempData["Error"] = "This match is no longer available for venue response.";
+                return RedirectToAction(nameof(Details), new { id = match.Id });
+            }
+
+            var isHomeOwner = await _context.TeamMembers
+                .AnyAsync(x =>
+                    x.TeamId == match.HomeTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            var isAwayOwner = await _context.TeamMembers
+                .AnyAsync(x =>
+                    x.TeamId == match.AwayTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            var canRespond =
+                (proposal.ProposedByTeamId == match.HomeTeamId && isAwayOwner) ||
+                (proposal.ProposedByTeamId == match.AwayTeamId && isHomeOwner);
+
+            if (!canRespond)
+                return Forbid();
+
+            proposal.Status = ProposalStatus.Declined;
+            proposal.RespondedAtUtc = DateTime.UtcNow;
+
+            var anotherPendingExists = await _context.MatchVenueProposals
+                .AnyAsync(x =>
+                    x.MatchId == match.Id &&
+                    x.Id != proposal.Id &&
+                    x.Status == ProposalStatus.Pending);
+
+            if (HasConfirmedVenue(match))
+            {
+                match.VenueStatus = VenueStatus.Confirmed;
+            }
+            else if (anotherPendingExists)
+            {
+                match.VenueStatus = VenueStatus.Proposed;
+            }
+            else
+            {
+                match.VenueStatus = VenueStatus.Unset;
+            }
+
+            var proposerOwnerIds = await _context.TeamMembers
+                .Where(x =>
+                    x.TeamId == proposal.ProposedByTeamId &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive)
+                .Select(x => x.PlayerId)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var ownerId in proposerOwnerIds)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    Id = Guid.NewGuid(),
+                    PlayerId = ownerId,
+                    Type = NotificationType.MatchVenueProposalDeclined,
+                    Title = "Venue proposal declined",
+                    Message = $"Your venue proposal for {match.HomeTeam?.Name} vs {match.AwayTeam?.Name} has been declined.",
+                    TargetType = NotificationTargetType.MatchVenueProposal,
+                    TargetId = proposal.Id,
+                    IsRead = false
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Venue proposal declined.";
+            return RedirectToAction(nameof(Details), new { id = match.Id });
         }
 
         private async Task<Guid?> GetOwnerTeamIdForMatchAsync(Guid playerId, Match match)
@@ -410,22 +643,6 @@ namespace MatchUp.Controllers
             return DefaultVenueImageUrl;
         }
 
-        private static string BuildProposalVenueText(MatchVenueProposal proposal)
-        {
-            if (proposal.VenueKind == VenueKind.Stadium && proposal.ProposedStadium is not null)
-                return $"{proposal.ProposedStadium.Name} - {proposal.ProposedStadium.FormattedAddress}";
-
-            var name = string.IsNullOrWhiteSpace(proposal.ProposedCustomVenueName)
-                ? "Custom venue"
-                : proposal.ProposedCustomVenueName;
-
-            var address = string.IsNullOrWhiteSpace(proposal.ProposedCustomFormattedAddress)
-                ? "Address not set"
-                : proposal.ProposedCustomFormattedAddress;
-
-            return $"{name} - {address}";
-        }
-
         private static string GetVenueStatusText(VenueStatus venueStatus)
         {
             return venueStatus switch
@@ -435,6 +652,94 @@ namespace MatchUp.Controllers
                 VenueStatus.Confirmed => "Confirmed",
                 _ => "Unknown"
             };
+        }
+
+        private static bool HasConfirmedVenue(Match match)
+        {
+            if (match.ConfirmedVenueKind == VenueKind.Stadium && match.ConfirmedStadiumId.HasValue)
+                return true;
+
+            if (match.ConfirmedVenueKind == VenueKind.Custom &&
+                (!string.IsNullOrWhiteSpace(match.ConfirmedCustomVenueName) ||
+                 !string.IsNullOrWhiteSpace(match.ConfirmedCustomFormattedAddress) ||
+                 match.ConfirmedCustomLatitude.HasValue ||
+                 match.ConfirmedCustomLongitude.HasValue))
+                return true;
+
+            return false;
+        }
+
+        private static string BuildCurrentVenueText(Match match)
+        {
+            if (match.ConfirmedVenueKind == VenueKind.Stadium && match.ConfirmedStadium is not null)
+                return $"{match.ConfirmedStadium.Name} - {match.ConfirmedStadium.FormattedAddress}";
+
+            if (match.ConfirmedVenueKind == VenueKind.Custom)
+            {
+                var venueName = string.IsNullOrWhiteSpace(match.ConfirmedCustomVenueName)
+                    ? "Custom venue"
+                    : match.ConfirmedCustomVenueName;
+
+                var address = string.IsNullOrWhiteSpace(match.ConfirmedCustomFormattedAddress)
+                    ? "Address not set"
+                    : match.ConfirmedCustomFormattedAddress;
+
+                return $"{venueName} - {address}";
+            }
+
+            return "Venue not set";
+        }
+
+        private static string BuildVenueHeroImageUrl(Match match)
+        {
+            if (match.ConfirmedVenueKind == VenueKind.Stadium &&
+                match.ConfirmedStadium is not null &&
+                !string.IsNullOrWhiteSpace(match.ConfirmedStadium.ImageUrl))
+            {
+                return match.ConfirmedStadium.ImageUrl;
+            }
+
+            return "/img/locations/1.jpg";
+        }
+
+        private static string BuildProposalVenueText(MatchVenueProposal proposal)
+        {
+            if (proposal.VenueKind == VenueKind.Stadium && proposal.ProposedStadium is not null)
+                return $"{proposal.ProposedStadium.Name} - {proposal.ProposedStadium.FormattedAddress}";
+
+            var venueName = string.IsNullOrWhiteSpace(proposal.ProposedCustomVenueName)
+                ? "Custom venue"
+                : proposal.ProposedCustomVenueName;
+
+            var address = string.IsNullOrWhiteSpace(proposal.ProposedCustomFormattedAddress)
+                ? "Address not set"
+                : proposal.ProposedCustomFormattedAddress;
+
+            return $"{venueName} - {address}";
+        }
+
+        private static bool CanRespondToVenueProposal(
+            Match match,
+            MatchVenueProposal proposal,
+            bool isHomeOwnerView,
+            bool isAwayOwnerView)
+        {
+            if (proposal.Status != ProposalStatus.Pending)
+                return false;
+
+            if (match.Status != MatchStatus.Scheduled)
+                return false;
+
+            if (match.StartAtUtc <= DateTime.UtcNow)
+                return false;
+
+            if (proposal.ProposedByTeamId == match.HomeTeamId && isAwayOwnerView)
+                return true;
+
+            if (proposal.ProposedByTeamId == match.AwayTeamId && isHomeOwnerView)
+                return true;
+
+            return false;
         }
 
         private Guid? GetCurrentPlayerId()

@@ -80,6 +80,13 @@
                                             </p>
                                         }
 
+                                        @if (!string.IsNullOrWhiteSpace(notification.MatchTitle))
+                                        {
+                                            <p>
+                                                <strong>Match:</strong> @notification.MatchTitle
+                                            </p>
+                                        }
+
                                         @if (notification.ProposedSquadNumber.HasValue)
                                         {
                                             <p>
@@ -227,13 +234,24 @@
                                                 </form>
                                             }
 
+                                            @if (notification.CanOpenMatch && notification.MatchId.HasValue)
+                                            {
+                                                <a asp-controller="Matches"
+                                                   asp-action="Details"
+                                                   asp-route-id="@notification.MatchId.Value"
+                                                   class="btn btn-primary"
+                                                   style="display:inline-block; margin-right:10px;">
+                                                    Open Match
+                                                </a>
+                                            }
+
                                             @if (!notification.IsRead &&
-                                                !notification.CanAccept &&
-                                                !notification.CanDecline &&
-                                                !notification.CanApproveOpenToGame &&
-                                                !notification.CanDeclineOpenToGame &&
-                                                !notification.CanAcceptGameRequest &&
-                                                !notification.CanDeclineGameRequest)
+                                                                                !notification.CanAccept &&
+                                                                                !notification.CanDecline &&
+                                                                                !notification.CanApproveOpenToGame &&
+                                                                                !notification.CanDeclineOpenToGame &&
+                                                                                !notification.CanAcceptGameRequest &&
+                                                                                !notification.CanDeclineGameRequest)
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="MarkAsRead"

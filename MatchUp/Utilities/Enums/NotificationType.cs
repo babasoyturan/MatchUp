@@ -26,6 +26,8 @@
         OpenToGameApprovalAccepted = 15,
         OpenToGameApprovalDeclined = 16,
 
-        MatchVenueProposalReceived = 17
+        MatchVenueProposalReceived = 17,
+        MatchVenueProposalApproved = 18,
+        MatchVenueProposalDeclined = 19
     }
 }

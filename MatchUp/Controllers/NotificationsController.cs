@@ -74,17 +74,46 @@ namespace MatchUp.Controllers
                 .Include(x => x.ToTeam)
                 .ToDictionaryAsync(x => x.Id);
 
-            var ownedTeamIds = await _context.TeamMembers
-                .AsNoTracking()
-                .Where(x =>
-                    x.PlayerId == currentPlayerId.Value &&
-                    x.IsActive &&
-                    x.Role == TeamRole.Owner)
-                .Select(x => x.TeamId)
+            var venueProposalIds = notifications
+                .Where(x => x.TargetType == NotificationTargetType.MatchVenueProposal && x.TargetId.HasValue)
+                .Select(x => x.TargetId!.Value)
                 .Distinct()
+                .ToList();
+
+            var venueProposals = await _context.MatchVenueProposals
+                .AsNoTracking()
+                .Where(x => venueProposalIds.Contains(x.Id))
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.HomeTeam)
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.AwayTeam)
+                .ToDictionaryAsync(x => x.Id);
+
+            var directMatchIds = notifications
+                .Where(x => x.TargetType == NotificationTargetType.Match && x.TargetId.HasValue)
+                .Select(x => x.TargetId!.Value)
+                .Distinct()
+                .ToList();
+
+            var directMatches = await _context.Matches
+                .AsNoTracking()
+                .Where(x => directMatchIds.Contains(x.Id))
+                .Include(x => x.HomeTeam)
+                .Include(x => x.AwayTeam)
+                .ToDictionaryAsync(x => x.Id);
+
+            var matchesFromRequests = await _context.Matches
+                .AsNoTracking()
+                .Where(x => x.CreatedFromRequestId.HasValue && gameRequestIds.Contains(x.CreatedFromRequestId.Value))
+                .Include(x => x.HomeTeam)
+                .Include(x => x.AwayTeam)
                 .ToListAsync();
 
-            var ownedTeamIdSet = ownedTeamIds.ToHashSet();
+            var requestMatchMap = matchesFromRequests
+                .Where(x => x.CreatedFromRequestId.HasValue)
+                .GroupBy(x => x.CreatedFromRequestId!.Value)
+                .ToDictionary(g => g.Key, g => g.First());
+
             var now = DateTime.UtcNow;
 
             var vm = new NotificationsIndexVm
@@ -95,6 +124,8 @@ namespace MatchUp.Controllers
                     invites.TryGetValue(n.TargetId ?? Guid.Empty, out var invite);
                     submissions.TryGetValue(n.TargetId ?? Guid.Empty, out var submission);
                     gameRequests.TryGetValue(n.TargetId ?? Guid.Empty, out var gameRequest);
+                    venueProposals.TryGetValue(n.TargetId ?? Guid.Empty, out var venueProposal);
+                    directMatches.TryGetValue(n.TargetId ?? Guid.Empty, out var directMatch);
 
                     var isInviteNotification =
                         n.TargetType == NotificationTargetType.TeamInvite &&
@@ -109,24 +140,43 @@ namespace MatchUp.Controllers
                     var approvalRow = submission?.MemberApprovals
                         .FirstOrDefault(x => x.PlayerId == currentPlayerId.Value);
 
-                    var canRespondOpenToGame =
+                    var canApproveOpenToGame =
                         n.Type == NotificationType.OpenToGameApprovalRequired &&
                         submission is not null &&
                         submission.Status == OpenToGameSubmissionStatus.PendingApprovals &&
                         approvalRow is not null &&
                         approvalRow.Status == ApprovalStatus.Pending;
 
-                    var canRespondGameRequest =
+                    var canDeclineOpenToGame = canApproveOpenToGame;
+
+                    var canAcceptGameRequest =
                         n.Type == NotificationType.GameRequestReceived &&
                         gameRequest is not null &&
-                        gameRequest.Status == GameRequestStatus.Pending &&
-                        ownedTeamIdSet.Contains(gameRequest.ToTeamId);
+                        gameRequest.Status == GameRequestStatus.Pending;
 
-                    var teamName =
-                        invite?.Team?.Name ??
-                        submission?.Team?.Name ??
-                        gameRequest?.FromTeam?.Name ??
-                        gameRequest?.ToTeam?.Name;
+                    var canDeclineGameRequest = canAcceptGameRequest;
+
+                    Match? resolvedMatch = null;
+
+                    if (n.TargetType == NotificationTargetType.Match && directMatch is not null)
+                    {
+                        resolvedMatch = directMatch;
+                    }
+                    else if (n.TargetType == NotificationTargetType.MatchVenueProposal && venueProposal?.Match is not null)
+                    {
+                        resolvedMatch = venueProposal.Match;
+                    }
+                    else if (n.TargetType == NotificationTargetType.GameRequest &&
+                             n.TargetId.HasValue &&
+                             requestMatchMap.TryGetValue(n.TargetId.Value, out var requestMatch))
+                    {
+                        resolvedMatch = requestMatch;
+                    }
+
+                    var matchId = resolvedMatch?.Id;
+                    var matchTitle = resolvedMatch is not null
+                        ? $"{resolvedMatch.HomeTeam?.Name ?? "Unknown"} vs {resolvedMatch.AwayTeam?.Name ?? "Unknown"}"
+                        : null;
 
                     return new NotificationListItemVm
                     {
@@ -137,8 +187,6 @@ namespace MatchUp.Controllers
                         IsRead = n.IsRead,
                         CreatedAtUtc = n.CreatedAtUtc,
 
-                        TeamName = teamName,
-
                         CanAccept = canAcceptOrDeclineInvite,
                         CanDecline = canAcceptOrDeclineInvite,
 
@@ -146,20 +194,32 @@ namespace MatchUp.Controllers
                         TeamInviteStatus = invite?.Status.ToString(),
                         ProposedSquadNumber = invite?.ProposedSquadNumber,
                         InviteExpiresAtUtc = invite?.ExpiresAtUtc,
-                        IsExpired = invite is not null && invite.ExpiresAtUtc <= now,
 
                         OpenToGameSubmissionId = submission?.Id,
                         OpenToGameSubmissionStatus = submission?.Status.ToString(),
-                        CanApproveOpenToGame = canRespondOpenToGame,
-                        CanDeclineOpenToGame = canRespondOpenToGame,
+
+                        CanApproveOpenToGame = canApproveOpenToGame,
+                        CanDeclineOpenToGame = canDeclineOpenToGame,
 
                         GameRequestId = gameRequest?.Id,
                         GameRequestStatus = gameRequest?.Status.ToString(),
                         GameRequestStartAtUtc = gameRequest?.StartAtUtc,
-                        GameRequestDurationMinutes = gameRequest?.DurationMinutes,
                         GameRequestFormat = gameRequest?.Format.ToString(),
-                        CanAcceptGameRequest = canRespondGameRequest,
-                        CanDeclineGameRequest = canRespondGameRequest
+                        GameRequestDurationMinutes = gameRequest?.DurationMinutes,
+
+                        CanAcceptGameRequest = canAcceptGameRequest,
+                        CanDeclineGameRequest = canDeclineGameRequest,
+
+                        TeamName = invite?.Team?.Name
+                                   ?? submission?.Team?.Name
+                                   ?? gameRequest?.FromTeam?.Name
+                                   ?? venueProposal?.Match?.HomeTeam?.Name,
+
+                        IsExpired = invite is not null && invite.ExpiresAtUtc <= now,
+
+                        MatchId = matchId,
+                        MatchTitle = matchTitle,
+                        CanOpenMatch = matchId.HasValue
                     };
                 }).ToList()
             };
