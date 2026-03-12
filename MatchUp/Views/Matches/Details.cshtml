@@ -1,4 +1,4 @@
-﻿@model MatchUp.ViewModels.Matches.MatchDetailsVm
+﻿@model MatchDetailsVm
 
 @{
     ViewData["Title"] = "Match Details";
@@ -14,6 +14,9 @@
     var heroImage = !string.IsNullOrWhiteSpace(Model.VenueHeroImageUrl)
         ? Model.VenueHeroImageUrl
         : Url.Content("~/img/locations/1.jpg");
+
+    var hasConfirmedScore = !string.IsNullOrWhiteSpace(Model.ConfirmedScoreText);
+    var heroCenterText = hasConfirmedScore ? Model.ConfirmedScoreText : "VS";
 }
 
 <style>
@@ -57,11 +60,41 @@
         }
 
     .match-action-btn {
+        display: inline-block;
         min-width: 220px;
-        padding: 12px 24px;
+        text-align: center;
+        padding: 14px 26px;
         font-size: 18px;
         font-weight: 600;
+        border-radius: 4px;
+        text-decoration: none !important;
+        transition: all 0.2s ease-in-out;
     }
+
+    .btn.theme.match-action-btn,
+    .btn.theme.match-action-btn:visited,
+    .btn.theme.match-action-btn:active,
+    .btn.theme.match-action-btn:focus {
+        color: #ffffff !important;
+        text-decoration: none !important;
+    }
+
+        .btn.theme.match-action-btn i,
+        .btn.theme.match-action-btn:visited i,
+        .btn.theme.match-action-btn:active i,
+        .btn.theme.match-action-btn:focus i {
+            color: #ffffff !important;
+        }
+
+        .btn.theme.match-action-btn:hover {
+            color: #ffffff !important;
+            text-decoration: none !important;
+            opacity: 0.92;
+        }
+
+            .btn.theme.match-action-btn:hover i {
+                color: #ffffff !important;
+            }
 
     .match-main-box,
     .match-side-box,
@@ -92,18 +125,36 @@
         margin-bottom: 12px;
     }
 
-    .venue-history-tab-pane {
-        padding-top: 25px;
-        padding-bottom: 35px;
+    .match-hero-score {
+        display: inline-block;
+        min-width: 120px;
+        padding: 16px 24px;
+        font-size: 34px;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        background: #00d084;
+        color: #ffffff;
+        border-radius: 4px;
+    }
+
+    .match-proposal-score {
+        font-weight: 700;
+        font-size: 16px;
     }
 
     .proposal-action-form {
         display: inline-block;
-        margin: 2px 4px 2px 0;
+        margin: 3px 6px 3px 0;
     }
 
-    .proposal-action-btn {
-        min-width: 90px;
+    .match-status-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        background: #f3f3f3;
     }
 </style>
 
@@ -142,7 +193,14 @@
 
             <div class="col-md-2 col-lg-2">
                 <div class="result-match">
-                    VS
+                    @if (hasConfirmedScore)
+                    {
+                        <div class="match-hero-score">@heroCenterText</div>
+                    }
+                    else
+                    {
+                        <span>VS</span>
+                    }
                 </div>
             </div>
 
@@ -172,6 +230,7 @@
                     <ul class="nav nav-tabs" id="myTab">
                         <li class="active"><a href="#overview" data-toggle="tab">Overview</a></li>
                         <li><a href="#venue-history" data-toggle="tab">Venue Proposals</a></li>
+                        <li><a href="#result-history" data-toggle="tab">Result Proposals</a></li>
                     </ul>
                 </div>
 
@@ -195,6 +254,11 @@
                                             <p><strong>Venue Status:</strong> @Model.VenueStatus</p>
                                             <p><strong>Result Status:</strong> @Model.ResultStatus</p>
                                             <p><strong>Current Venue:</strong> @Model.CurrentVenueText</p>
+
+                                            @if (!string.IsNullOrWhiteSpace(Model.ConfirmedScoreText))
+                                            {
+                                                <p><strong>Confirmed Score:</strong> @Model.ConfirmedScoreText</p>
+                                            }
                                         </div>
                                     </div>
 
@@ -209,8 +273,9 @@
                                                 <a asp-controller="Matches"
                                                    asp-action="ProposeVenue"
                                                    asp-route-matchId="@Model.Id"
-                                                   class="btn btn-primary match-action-btn">
+                                                   class="btn theme match-action-btn">
                                                     Propose Venue
+                                                    <i class="fa fa-angle-right" aria-hidden="true"></i>
                                                 </a>
                                             }
                                             else if (Model.HasPendingVenueProposal)
@@ -220,6 +285,37 @@
                                             else
                                             {
                                                 <p>You cannot propose a venue for this match right now.</p>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="panel-box match-main-box">
+                                        <div class="titles no-margin">
+                                            <h4>Result Management</h4>
+                                        </div>
+
+                                        <div class="info-panel">
+                                            @if (Model.CanProposeResult)
+                                            {
+                                                <a asp-controller="Matches"
+                                                   asp-action="ProposeResult"
+                                                   asp-route-matchId="@Model.Id"
+                                                   class="btn theme match-action-btn">
+                                                    Propose Result
+                                                    <i class="fa fa-angle-right" aria-hidden="true"></i>
+                                                </a>
+                                            }
+                                            else if (Model.HasPendingResultProposal)
+                                            {
+                                                <p>A pending result proposal already exists for this match.</p>
+                                            }
+                                            else if (!string.IsNullOrWhiteSpace(Model.ConfirmedScoreText))
+                                            {
+                                                <p>This match result has already been confirmed.</p>
+                                            }
+                                            else
+                                            {
+                                                <p>You cannot propose a result for this match right now.</p>
                                             }
                                         </div>
                                     </div>
@@ -247,13 +343,19 @@
                                             <p><strong>Home Team:</strong> @Model.HomeTeamName</p>
                                             <p><strong>Away Team:</strong> @Model.AwayTeamName</p>
                                             <p><strong>Venue:</strong> @Model.CurrentVenueText</p>
+                                            <p><strong>Result Status:</strong> @Model.ResultStatus</p>
+
+                                            @if (!string.IsNullOrWhiteSpace(Model.ConfirmedScoreText))
+                                            {
+                                                <p><strong>Score:</strong> @Model.ConfirmedScoreText</p>
+                                            }
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="tab-pane venue-history-tab-pane" id="venue-history">
+                        <div class="tab-pane" id="venue-history">
                             <div class="row">
                                 <div class="col-lg-12">
                                     @if (!Model.VenueProposals.Any())
@@ -309,9 +411,7 @@
                                                                               class="proposal-action-form">
                                                                             @Html.AntiForgeryToken()
                                                                             <input type="hidden" name="proposalId" value="@proposal.ProposalId" />
-                                                                            <button type="submit" class="btn btn-primary proposal-action-btn">
-                                                                                Approve
-                                                                            </button>
+                                                                            <button type="submit" class="btn btn-success">Approve</button>
                                                                         </form>
                                                                     }
 
@@ -323,15 +423,13 @@
                                                                               class="proposal-action-form">
                                                                             @Html.AntiForgeryToken()
                                                                             <input type="hidden" name="proposalId" value="@proposal.ProposalId" />
-                                                                            <button type="submit" class="btn btn-danger proposal-action-btn">
-                                                                                Decline
-                                                                            </button>
+                                                                            <button type="submit" class="btn btn-danger">Decline</button>
                                                                         </form>
                                                                     }
 
                                                                     @if (!proposal.CanApprove && !proposal.CanDecline)
                                                                     {
-                                                                        <span>-</span>
+                                                                        <span class="match-status-badge">No action</span>
                                                                     }
                                                                 </td>
                                                             </tr>
@@ -341,6 +439,63 @@
                                             </div>
                                         </div>
                                     }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane" id="result-history">
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <div class="panel-box match-table-box">
+                                        <div class="titles">
+                                            <h4>Result Proposal History</h4>
+                                        </div>
+
+                                        @if (!Model.ResultProposals.Any())
+                                        {
+                                            <div class="match-table-note">
+                                                <h4>No result proposals yet</h4>
+                                                <p>No team has submitted a result proposal for this match.</p>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="match-table-wrapper">
+                                                <table class="table-striped table-responsive table-hover result-point">
+                                                    <thead class="point-table-head">
+                                                        <tr>
+                                                            <th class="text-left">Proposed By</th>
+                                                            <th class="text-center">Score</th>
+                                                            <th class="text-center">Status</th>
+                                                            <th class="text-center">Created</th>
+                                                            <th class="text-center">Responded</th>
+                                                        </tr>
+                                                    </thead>
+
+                                                    <tbody>
+                                                        @foreach (var proposal in Model.ResultProposals)
+                                                        {
+                                                            <tr>
+                                                                <td class="text-left">@proposal.ProposedByTeamName</td>
+                                                                <td class="text-center">
+                                                                    <span class="match-proposal-score">
+                                                                        @proposal.ProposedHomeTeamScore - @proposal.ProposedAwayTeamScore
+                                                                    </span>
+                                                                </td>
+                                                                <td class="text-center">@proposal.StatusText</td>
+                                                                <td class="text-center">@proposal.CreatedAtUtc.ToString("dd MMM yyyy HH:mm")</td>
+                                                                <td class="text-center">
+                                                                    @(proposal.RespondedAtUtc.HasValue
+                                                                                                                                ? proposal.RespondedAtUtc.Value.ToString("dd MMM yyyy HH:mm")
+                                                                                                                                : "-")
+                                                        </td>
+                                                    </tr>
+                                                                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        }
+                                    </div>
                                 </div>
                             </div>
                         </div>

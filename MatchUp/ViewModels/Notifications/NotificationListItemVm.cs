@@ -33,6 +33,14 @@
         public bool CanAcceptGameRequest { get; set; }
         public bool CanDeclineGameRequest { get; set; }
 
+        public Guid? MatchResultProposalId { get; set; }
+        public string? MatchResultProposalStatus { get; set; }
+        public int? ProposedHomeTeamScore { get; set; }
+        public int? ProposedAwayTeamScore { get; set; }
+
+        public bool CanApproveMatchResultProposal { get; set; }
+        public bool CanDeclineMatchResultProposal { get; set; }
+
         public string? TeamName { get; set; }
         public bool IsExpired { get; set; }
 

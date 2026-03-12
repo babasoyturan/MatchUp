@@ -64,7 +64,14 @@ namespace MatchUp.Controllers
                 match.StartAtUtc > DateTime.UtcNow &&
                 !hasPendingVenueProposal;
 
-            var vm = new MatchUp.ViewModels.Matches.MatchDetailsVm
+            var resultProposals = await _context.MatchResultProposals
+                .AsNoTracking()
+                .Where(x => x.MatchId == id)
+                .Include(x => x.ProposedByTeam)
+                .OrderByDescending(x => x.CreatedAtUtc)
+                .ToListAsync();
+
+            var vm = new MatchDetailsVm
             {
                 Id = match.Id,
 
@@ -112,6 +119,36 @@ namespace MatchUp.Controllers
                     })
                     .ToList()
             };
+
+            var isMatchFinished = IsMatchFinished(match);
+            var hasPendingResultProposal = resultProposals.Any(x => x.Status == ProposalStatus.Pending);
+
+            vm.CanProposeResult =
+                (vm.IsHomeOwnerView || vm.IsAwayOwnerView) &&
+                isMatchFinished &&
+                match.ResultStatus != ResultStatus.Confirmed &&
+                match.Status != MatchStatus.Completed &&
+                !hasPendingResultProposal;
+
+            vm.HasPendingResultProposal = hasPendingResultProposal;
+
+            vm.ConfirmedScoreText =
+                match.HomeTeamScore.HasValue && match.AwayTeamScore.HasValue
+                    ? $"{match.HomeTeamScore.Value} - {match.AwayTeamScore.Value}"
+                    : null;
+
+            vm.ResultProposals = resultProposals
+                .Select(x => new MatchResultProposalListItemVm
+                {
+                    Id = x.Id,
+                    ProposedByTeamName = x.ProposedByTeam != null ? x.ProposedByTeam.Name : "Unknown Team",
+                    ProposedHomeTeamScore = x.ProposedHomeTeamScore,
+                    ProposedAwayTeamScore = x.ProposedAwayTeamScore,
+                    StatusText = x.Status.ToString(),
+                    CreatedAtUtc = x.CreatedAtUtc,
+                    RespondedAtUtc = x.RespondedAtUtc
+                })
+                .ToList();
 
             return View(vm);
         }
@@ -562,6 +599,153 @@ namespace MatchUp.Controllers
             return RedirectToAction(nameof(Details), new { id = match.Id });
         }
 
+        [HttpGet]
+        public async Task<IActionResult> ProposeResult(Guid matchId)
+        {
+            var currentPlayerId = GetCurrentPlayerId();
+
+            var match = await _context.Matches
+                .Include(x => x.HomeTeam)
+                .Include(x => x.AwayTeam)
+                .Include(x => x.ResultProposals)
+                .FirstOrDefaultAsync(x => x.Id == matchId);
+
+            if (match is null)
+                return NotFound();
+
+            var ownedTeamId = await GetOwnedMatchTeamIdAsync(currentPlayerId!.Value, match);
+
+            if (!ownedTeamId.HasValue)
+                return Forbid();
+
+            if (!IsMatchFinished(match))
+            {
+                TempData["Error"] = "You can propose a result only after the match time has finished.";
+                return RedirectToAction(nameof(Details), new { id = matchId });
+            }
+
+            if (match.ResultStatus == ResultStatus.Confirmed || match.Status == MatchStatus.Completed)
+            {
+                TempData["Error"] = "This match result has already been confirmed.";
+                return RedirectToAction(nameof(Details), new { id = matchId });
+            }
+
+            var hasPendingProposal = match.ResultProposals.Any(x => x.Status == ProposalStatus.Pending);
+
+            if (hasPendingProposal)
+            {
+                TempData["Error"] = "A pending result proposal already exists for this match.";
+                return RedirectToAction(nameof(Details), new { id = matchId });
+            }
+
+            var vm = new ProposeResultVm
+            {
+                MatchId = match.Id,
+                HomeTeamName = match.HomeTeam?.Name ?? "Unknown Team",
+                AwayTeamName = match.AwayTeam?.Name ?? "Unknown Team",
+                StartAtUtc = match.StartAtUtc,
+                CurrentResultStatus = match.ResultStatus.ToString(),
+                CurrentVenueText = BuildCurrentVenueText(match),
+                ProposedHomeTeamScore = match.HomeTeamScore ?? 0,
+                ProposedAwayTeamScore = match.AwayTeamScore ?? 0
+            };
+
+            return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ProposeResult(ProposeResultVm vm)
+        {
+            var currentPlayerId = GetCurrentPlayerId();
+
+            var match = await _context.Matches
+                .Include(x => x.HomeTeam)
+                .Include(x => x.AwayTeam)
+                .Include(x => x.ResultProposals)
+                .FirstOrDefaultAsync(x => x.Id == vm.MatchId);
+
+            if (match is null)
+                return NotFound();
+
+            var proposedByTeamId = await GetOwnedMatchTeamIdAsync(currentPlayerId!.Value, match);
+
+            if (!proposedByTeamId.HasValue)
+                return Forbid();
+
+            if (!IsMatchFinished(match))
+            {
+                TempData["Error"] = "You can propose a result only after the match time has finished.";
+                return RedirectToAction(nameof(Details), new { id = vm.MatchId });
+            }
+
+            if (match.ResultStatus == ResultStatus.Confirmed || match.Status == MatchStatus.Completed)
+            {
+                TempData["Error"] = "This match result has already been confirmed.";
+                return RedirectToAction(nameof(Details), new { id = vm.MatchId });
+            }
+
+            var hasPendingProposal = match.ResultProposals.Any(x => x.Status == ProposalStatus.Pending);
+
+            if (hasPendingProposal)
+            {
+                TempData["Error"] = "A pending result proposal already exists for this match.";
+                return RedirectToAction(nameof(Details), new { id = vm.MatchId });
+            }
+
+            if (vm.ProposedHomeTeamScore < 0 || vm.ProposedAwayTeamScore < 0)
+                ModelState.AddModelError(string.Empty, "Scores cannot be negative.");
+
+            if (!ModelState.IsValid)
+            {
+                vm.HomeTeamName = match.HomeTeam?.Name ?? "Unknown Team";
+                vm.AwayTeamName = match.AwayTeam?.Name ?? "Unknown Team";
+                vm.StartAtUtc = match.StartAtUtc;
+                vm.CurrentResultStatus = match.ResultStatus.ToString();
+                vm.CurrentVenueText = BuildCurrentVenueText(match);
+                return View(vm);
+            }
+
+            var proposal = new MatchResultProposal
+            {
+                Id = Guid.NewGuid(),
+                MatchId = match.Id,
+                ProposedByTeamId = proposedByTeamId.Value,
+                ProposedHomeTeamScore = vm.ProposedHomeTeamScore,
+                ProposedAwayTeamScore = vm.ProposedAwayTeamScore,
+                Status = ProposalStatus.Pending
+            };
+
+            _context.MatchResultProposals.Add(proposal);
+
+            match.ResultStatus = ResultStatus.PendingApproval;
+
+            var opponentTeamId = proposedByTeamId.Value == match.HomeTeamId
+                ? match.AwayTeamId
+                : match.HomeTeamId;
+
+            var opponentOwnerIds = await GetTeamOwnerIdsAsync(opponentTeamId);
+
+            foreach (var ownerId in opponentOwnerIds)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    PlayerId = ownerId,
+                    Type = NotificationType.MatchResultProposalReceived,
+                    Title = "Match result proposal received",
+                    Message = $"{match.HomeTeam?.Name} vs {match.AwayTeam?.Name}: proposed score is {vm.ProposedHomeTeamScore} - {vm.ProposedAwayTeamScore}.",
+                    TargetType = NotificationTargetType.MatchResultProposal,
+                    TargetId = proposal.Id,
+                    IsRead = false
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Match result proposal submitted successfully.";
+            return RedirectToAction(nameof(Details), new { id = vm.MatchId });
+        }
+
         private async Task<Guid?> GetOwnerTeamIdForMatchAsync(Guid playerId, Match match)
         {
             var ownerMembership = await _context.TeamMembers
@@ -740,6 +924,35 @@ namespace MatchUp.Controllers
                 return true;
 
             return false;
+        }
+
+        private static bool IsMatchFinished(Match match)
+        {
+            return DateTime.UtcNow >= match.StartAtUtc.AddMinutes(match.DurationMinutes);
+        }
+
+        private async Task<Guid?> GetOwnedMatchTeamIdAsync(Guid playerId, Match match)
+        {
+            return await _context.TeamMembers
+                .Where(x =>
+                    x.PlayerId == playerId &&
+                    x.IsActive &&
+                    x.Role == TeamRole.Owner &&
+                    (x.TeamId == match.HomeTeamId || x.TeamId == match.AwayTeamId))
+                .Select(x => (Guid?)x.TeamId)
+                .FirstOrDefaultAsync();
+        }
+
+        private async Task<List<Guid>> GetTeamOwnerIdsAsync(Guid teamId)
+        {
+            return await _context.TeamMembers
+                .Where(x =>
+                    x.TeamId == teamId &&
+                    x.IsActive &&
+                    x.Role == TeamRole.Owner)
+                .Select(x => x.PlayerId)
+                .Distinct()
+                .ToListAsync();
         }
 
         private Guid? GetCurrentPlayerId()

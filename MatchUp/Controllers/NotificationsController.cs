@@ -30,6 +30,18 @@ namespace MatchUp.Controllers
             if (!currentPlayerId.HasValue)
                 return Unauthorized();
 
+            var ownerTeamIds = await _context.TeamMembers
+                .AsNoTracking()
+                .Where(x =>
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.IsActive &&
+                    x.Role == TeamRole.Owner)
+                .Select(x => x.TeamId)
+                .Distinct()
+                .ToListAsync();
+
+            var ownerTeamIdSet = ownerTeamIds.ToHashSet();
+
             var notifications = await _context.Notifications
                 .AsNoTracking()
                 .Where(x => x.PlayerId == currentPlayerId.Value)
@@ -72,6 +84,22 @@ namespace MatchUp.Controllers
                 .Where(x => gameRequestIds.Contains(x.Id))
                 .Include(x => x.FromTeam)
                 .Include(x => x.ToTeam)
+                .ToDictionaryAsync(x => x.Id);
+
+            var resultProposalIds = notifications
+                .Where(x => x.TargetType == NotificationTargetType.MatchResultProposal && x.TargetId.HasValue)
+                .Select(x => x.TargetId!.Value)
+                .Distinct()
+                .ToList();
+
+            var resultProposals = await _context.MatchResultProposals
+                .AsNoTracking()
+                .Where(x => resultProposalIds.Contains(x.Id))
+                .Include(x => x.ProposedByTeam)
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.HomeTeam)
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.AwayTeam)
                 .ToDictionaryAsync(x => x.Id);
 
             var venueProposalIds = notifications
@@ -124,6 +152,7 @@ namespace MatchUp.Controllers
                     invites.TryGetValue(n.TargetId ?? Guid.Empty, out var invite);
                     submissions.TryGetValue(n.TargetId ?? Guid.Empty, out var submission);
                     gameRequests.TryGetValue(n.TargetId ?? Guid.Empty, out var gameRequest);
+                    resultProposals.TryGetValue(n.TargetId ?? Guid.Empty, out var resultProposal);
                     venueProposals.TryGetValue(n.TargetId ?? Guid.Empty, out var venueProposal);
                     directMatches.TryGetValue(n.TargetId ?? Guid.Empty, out var directMatch);
 
@@ -156,6 +185,22 @@ namespace MatchUp.Controllers
 
                     var canDeclineGameRequest = canAcceptGameRequest;
 
+                    Guid? resultReviewTeamId = null;
+
+                    if (resultProposal?.Match is not null)
+                    {
+                        resultReviewTeamId = resultProposal.ProposedByTeamId == resultProposal.Match.HomeTeamId
+                            ? resultProposal.Match.AwayTeamId
+                            : resultProposal.Match.HomeTeamId;
+                    }
+
+                    var canReviewResultProposal =
+                        n.Type == NotificationType.MatchResultProposalReceived &&
+                        resultProposal is not null &&
+                        resultProposal.Status == ProposalStatus.Pending &&
+                        resultReviewTeamId.HasValue &&
+                        ownerTeamIdSet.Contains(resultReviewTeamId.Value);
+
                     Match? resolvedMatch = null;
 
                     if (n.TargetType == NotificationTargetType.Match && directMatch is not null)
@@ -165,6 +210,10 @@ namespace MatchUp.Controllers
                     else if (n.TargetType == NotificationTargetType.MatchVenueProposal && venueProposal?.Match is not null)
                     {
                         resolvedMatch = venueProposal.Match;
+                    }
+                    else if (n.TargetType == NotificationTargetType.MatchResultProposal && resultProposal?.Match is not null)
+                    {
+                        resolvedMatch = resultProposal.Match;
                     }
                     else if (n.TargetType == NotificationTargetType.GameRequest &&
                              n.TargetId.HasValue &&
@@ -210,10 +259,17 @@ namespace MatchUp.Controllers
                         CanAcceptGameRequest = canAcceptGameRequest,
                         CanDeclineGameRequest = canDeclineGameRequest,
 
+                        MatchResultProposalId = resultProposal?.Id,
+                        MatchResultProposalStatus = resultProposal?.Status.ToString(),
+                        ProposedHomeTeamScore = resultProposal?.ProposedHomeTeamScore,
+                        ProposedAwayTeamScore = resultProposal?.ProposedAwayTeamScore,
+                        CanApproveMatchResultProposal = canReviewResultProposal,
+                        CanDeclineMatchResultProposal = canReviewResultProposal,
+
                         TeamName = invite?.Team?.Name
                                    ?? submission?.Team?.Name
                                    ?? gameRequest?.FromTeam?.Name
-                                   ?? venueProposal?.Match?.HomeTeam?.Name,
+                                   ?? resultProposal?.ProposedByTeam?.Name,
 
                         IsExpired = invite is not null && invite.ExpiresAtUtc <= now,
 
@@ -846,6 +902,220 @@ namespace MatchUp.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Game request declined.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApproveMatchResultProposal(Guid resultProposalId, Guid notificationId)
+        {
+            var currentPlayerId = GetCurrentPlayerId();
+
+            if (!currentPlayerId.HasValue)
+                return Unauthorized();
+
+            var proposal = await _context.MatchResultProposals
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.HomeTeam)
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.AwayTeam)
+                .Include(x => x.ProposedByTeam)
+                .FirstOrDefaultAsync(x => x.Id == resultProposalId);
+
+            if (proposal is null)
+            {
+                TempData["Error"] = "Match result proposal not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (proposal.Status != ProposalStatus.Pending)
+            {
+                TempData["Error"] = "This result proposal is no longer pending.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var reviewTeamId = proposal.ProposedByTeamId == proposal.Match!.HomeTeamId
+                ? proposal.Match.AwayTeamId
+                : proposal.Match.HomeTeamId;
+
+            var isOwner = await _context.TeamMembers
+                .AnyAsync(x =>
+                    x.TeamId == reviewTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            if (!isOwner)
+                return Forbid();
+
+            var now = DateTime.UtcNow;
+
+            proposal.Status = ProposalStatus.Accepted;
+            proposal.RespondedAtUtc = now;
+
+            proposal.Match.HomeTeamScore = proposal.ProposedHomeTeamScore;
+            proposal.Match.AwayTeamScore = proposal.ProposedAwayTeamScore;
+            proposal.Match.ResultStatus = ResultStatus.Confirmed;
+            proposal.Match.Status = MatchStatus.Completed;
+            proposal.Match.CompletedAtUtc = now;
+
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(x => x.Id == notificationId && x.PlayerId == currentPlayerId.Value);
+
+            if (notification is not null && !notification.IsRead)
+            {
+                notification.IsRead = true;
+                notification.ReadAtUtc = now;
+            }
+
+            var relatedNotifications = await _context.Notifications
+                .Where(x =>
+                    x.TargetType == NotificationTargetType.MatchResultProposal &&
+                    x.TargetId == proposal.Id &&
+                    !x.IsRead)
+                .ToListAsync();
+
+            foreach (var item in relatedNotifications)
+            {
+                item.IsRead = true;
+                item.ReadAtUtc = now;
+            }
+
+            var activePlayerIds = await _context.TeamMembers
+                .Where(x =>
+                    x.IsActive &&
+                    (x.TeamId == proposal.Match.HomeTeamId || x.TeamId == proposal.Match.AwayTeamId))
+                .Select(x => x.PlayerId)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var playerId in activePlayerIds)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    PlayerId = playerId,
+                    Type = NotificationType.MatchResultConfirmed,
+                    Title = "Match result confirmed",
+                    Message = $"{proposal.Match.HomeTeam?.Name} {proposal.ProposedHomeTeamScore} - {proposal.ProposedAwayTeamScore} {proposal.Match.AwayTeam?.Name}",
+                    TargetType = NotificationTargetType.Match,
+                    TargetId = proposal.Match.Id,
+                    IsRead = false
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Match result approved successfully.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeclineMatchResultProposal(Guid resultProposalId, Guid notificationId)
+        {
+            var currentPlayerId = GetCurrentPlayerId();
+
+            if (!currentPlayerId.HasValue)
+                return Unauthorized();
+
+            var proposal = await _context.MatchResultProposals
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.HomeTeam)
+                .Include(x => x.Match)
+                    .ThenInclude(x => x.AwayTeam)
+                .Include(x => x.ProposedByTeam)
+                .FirstOrDefaultAsync(x => x.Id == resultProposalId);
+
+            if (proposal is null)
+            {
+                TempData["Error"] = "Match result proposal not found.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (proposal.Status != ProposalStatus.Pending)
+            {
+                TempData["Error"] = "This result proposal is no longer pending.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var reviewTeamId = proposal.ProposedByTeamId == proposal.Match!.HomeTeamId
+                ? proposal.Match.AwayTeamId
+                : proposal.Match.HomeTeamId;
+
+            var isOwner = await _context.TeamMembers
+                .AnyAsync(x =>
+                    x.TeamId == reviewTeamId &&
+                    x.PlayerId == currentPlayerId.Value &&
+                    x.Role == TeamRole.Owner &&
+                    x.IsActive);
+
+            if (!isOwner)
+                return Forbid();
+
+            var now = DateTime.UtcNow;
+
+            proposal.Status = ProposalStatus.Declined;
+            proposal.RespondedAtUtc = now;
+
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(x => x.Id == notificationId && x.PlayerId == currentPlayerId.Value);
+
+            if (notification is not null && !notification.IsRead)
+            {
+                notification.IsRead = true;
+                notification.ReadAtUtc = now;
+            }
+
+            var relatedNotifications = await _context.Notifications
+                .Where(x =>
+                    x.TargetType == NotificationTargetType.MatchResultProposal &&
+                    x.TargetId == proposal.Id &&
+                    !x.IsRead)
+                .ToListAsync();
+
+            foreach (var item in relatedNotifications)
+            {
+                item.IsRead = true;
+                item.ReadAtUtc = now;
+            }
+
+            var stillHasPending = await _context.MatchResultProposals
+                .AnyAsync(x =>
+                    x.MatchId == proposal.MatchId &&
+                    x.Status == ProposalStatus.Pending &&
+                    x.Id != proposal.Id);
+
+            if (!stillHasPending)
+            {
+                proposal.Match.ResultStatus = ResultStatus.Unset;
+            }
+
+            var proposerOwnerIds = await _context.TeamMembers
+                .Where(x =>
+                    x.TeamId == proposal.ProposedByTeamId &&
+                    x.IsActive &&
+                    x.Role == TeamRole.Owner)
+                .Select(x => x.PlayerId)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var ownerId in proposerOwnerIds)
+            {
+                _context.Notifications.Add(new Notification
+                {
+                    PlayerId = ownerId,
+                    Type = NotificationType.MatchResultProposalDeclined,
+                    Title = "Match result proposal declined",
+                    Message = $"{proposal.Match.HomeTeam?.Name} vs {proposal.Match.AwayTeam?.Name}: your proposed result was declined.",
+                    TargetType = NotificationTargetType.MatchResultProposal,
+                    TargetId = proposal.Id,
+                    IsRead = false
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Match result proposal declined.";
             return RedirectToAction(nameof(Index));
         }
 

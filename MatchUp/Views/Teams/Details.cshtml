@@ -12,6 +12,134 @@
         : Url.Content("~/img/default-team-banner.jpg");
 }
 
+<style>
+    .team-results-grid {
+        margin-top: 10px;
+    }
+
+    .team-result-card {
+        margin-bottom: 30px;
+        box-shadow: 0 0 8px rgba(0,0,0,0.08);
+        background: #fff;
+    }
+
+    .team-result-card-header {
+        background: #111;
+        color: #fff;
+        padding: 18px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+        .team-result-card-header h5 {
+            margin: 0;
+            color: #fff;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .team-result-card-header span {
+            color: #10e0b2;
+            font-size: 26px;
+            font-weight: 600;
+        }
+
+    .team-result-card-body {
+        padding: 35px 30px 30px 30px;
+        text-align: center;
+    }
+
+    .team-result-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .team-result-club {
+        flex: 1 1 35%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        min-width: 240px;
+    }
+
+        .team-result-club.team-result-club-right {
+            flex-direction: row-reverse;
+        }
+
+        .team-result-club img {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            background: #fff;
+        }
+
+        .team-result-club span {
+            font-size: 24px;
+            font-weight: 500;
+            color: #222;
+        }
+
+    .team-result-score-box {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        justify-content: center;
+    }
+
+    .team-result-score {
+        width: 54px;
+        height: 54px;
+        background: #111;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 700;
+    }
+
+    .team-result-actions {
+        margin-top: 24px;
+    }
+
+        .team-result-actions .btn.theme,
+        .team-result-actions .btn.theme:visited,
+        .team-result-actions .btn.theme:focus,
+        .team-result-actions .btn.theme:active {
+            color: #fff !important;
+            text-decoration: none !important;
+        }
+
+            .team-result-actions .btn.theme:hover {
+                color: #fff !important;
+                text-decoration: none !important;
+                opacity: 0.92;
+            }
+
+    @@media (max-width: 991px) {
+        .team-result-row {
+            flex-direction: column;
+        }
+
+        .team-result-club,
+        .team-result-club.team-result-club-right {
+            flex-direction: row;
+            min-width: unset;
+            width: 100%;
+        }
+
+            .team-result-club span {
+                font-size: 20px;
+            }
+    }
+</style>
+
 <div class="section-title-team">
     <div class="container">
         <div class="row">
@@ -335,9 +463,8 @@
                                                         {
                                                             <img src="@teamLogo" alt="@Model.Name" style="width:24px; height:24px; object-fit:cover;">
                                                             <strong>@Model.Name</strong>
-
                                                             <br>
-                                                            <small class="meta-text">Away</small>
+                                                            <small class="meta-text">Home</small>
                                                         }
                                                         else
                                                         {
@@ -349,9 +476,8 @@
                                                                     @match.OpponentTeamName
                                                                 </a>
                                                             </strong>
-
                                                             <br>
-                                                            <small class="meta-text">Home</small>
+                                                            <small class="meta-text">Away</small>
                                                         }
                                                     </td>
 
@@ -368,27 +494,20 @@
                                                                     @match.OpponentTeamName
                                                                 </a>
                                                             </strong>
-
                                                             <br>
-                                                            <small class="meta-text">Home</small>
+                                                            <small class="meta-text">Away</small>
                                                         }
                                                         else
                                                         {
                                                             <img src="@teamLogo" alt="@Model.Name" style="width:24px; height:24px; object-fit:cover;">
                                                             <strong>@Model.Name</strong>
-
                                                             <br>
-                                                            <small class="meta-text">Away</small>
+                                                            <small class="meta-text">Home</small>
                                                         }
                                                     </td>
 
                                                     <td>
-                                                        <a asp-controller="Matches"
-                                                            asp-action="Details"
-                                                            asp-route-id="@match.MatchId">
-                                                            @match.StartAtUtc.ToString("dd MMM yyyy, HH:mm")
-                                                        </a>
-                                                        <br>
+                                                        @match.StartAtUtc.ToString("dd MMM yyyy, HH:mm")<br>
                                                         <small class="meta-text">@match.VenueText</small><br>
                                                         <small class="meta-text">@match.Format</small>
                                                     </td>
@@ -401,80 +520,63 @@
                         </div>
 
                         <div class="tab-pane" id="results">
-                            <div class="col-lg-12">
+                            <div class="row team-results-grid">
                                 @if (!Model.Results.Any())
                                 {
-                                    <div class="panel-box">
-                                        <div class="info-panel text-center" style="padding:40px 20px;">
-                                            <h4>No results found</h4>
-                                            <p>This team does not have completed matches yet.</p>
+                                    <div class="col-lg-12">
+                                        <div class="panel-box">
+                                            <div class="info-panel text-center" style="padding:40px 20px;">
+                                                <h4>No results found</h4>
+                                                <p>This team does not have completed matches yet.</p>
+                                            </div>
                                         </div>
                                     </div>
                                 }
                                 else
                                 {
-                                    <div class="recent-results results-page">
-                                        <div class="info-results">
-                                            <ul>
-                                                @foreach (var match in Model.Results)
-                                                {
-                                                    var opponentLogo = !string.IsNullOrWhiteSpace(match.OpponentTeamLogoUrl)
-                                                    ? match.OpponentTeamLogoUrl
-                                                    : Url.Content("~/img/default-team-logo.png");
+                                    @foreach (var match in Model.Results)
+                                    {
+                                        var opponentLogo = !string.IsNullOrWhiteSpace(match.OpponentTeamLogoUrl)
+                                        ? match.OpponentTeamLogoUrl
+                                        : Url.Content("~/img/default-team-logo.png");
 
-                                                    <li>
-                                                        <span class="head">
-                                                            @(match.IsHome ? $"{Model.Name} vs {match.OpponentTeamName}" : $"{match.OpponentTeamName} vs {Model.Name}")
-                                                            <span class="date">@match.StartAtUtc.ToString("dd MMM yyyy")</span>
-                                                        </span>
+                                        <div class="col-lg-12">
+                                            <div class="team-result-card">
+                                                <div class="team-result-card-header">
+                                                    <h5>@Model.Name vs @match.OpponentTeamName</h5>
+                                                    <span>@match.StartAtUtc.ToString("dd MMM yyyy")</span>
+                                                </div>
 
-                                                        <div class="goals-result">
-                                                            @if (match.IsHome)
-                                                            {
-                                                                <a asp-controller="Teams"
-                                                                   asp-action="Details"
-                                                                   asp-route-id="@Model.Id">
-                                                                    <img src="@teamLogo" alt="@Model.Name">
-                                                                    @Model.Name
-                                                                </a>
-
-                                                                <span class="goals">
-                                                                    <b>@match.TeamScore</b> - <b>@match.OpponentScore</b>
-                                                                </span>
-
-                                                                <a asp-controller="Teams"
-                                                                   asp-action="Details"
-                                                                   asp-route-id="@match.OpponentTeamId">
-                                                                    <img src="@opponentLogo" alt="@match.OpponentTeamName">
-                                                                    @match.OpponentTeamName
-                                                                </a>
-                                                            }
-                                                            else
-                                                            {
-                                                                <a asp-controller="Teams"
-                                                                   asp-action="Details"
-                                                                   asp-route-id="@match.OpponentTeamId">
-                                                                    <img src="@opponentLogo" alt="@match.OpponentTeamName">
-                                                                    @match.OpponentTeamName
-                                                                </a>
-
-                                                                <span class="goals">
-                                                                    <b>@match.OpponentScore</b> - <b>@match.TeamScore</b>
-                                                                </span>
-
-                                                                <a asp-controller="Teams"
-                                                                   asp-action="Details"
-                                                                   asp-route-id="@Model.Id">
-                                                                    <img src="@teamLogo" alt="@Model.Name">
-                                                                    @Model.Name
-                                                                </a>
-                                                            }
+                                                <div class="team-result-card-body">
+                                                    <div class="team-result-row">
+                                                        <div class="team-result-club">
+                                                            <img src="@teamLogo" alt="@Model.Name">
+                                                            <span>@Model.Name</span>
                                                         </div>
-                                                    </li>
-                                                }
-                                            </ul>
+
+                                                        <div class="team-result-score-box">
+                                                            <span class="team-result-score">@match.TeamScore</span>
+                                                            <span class="team-result-score">@match.OpponentScore</span>
+                                                        </div>
+
+                                                        <div class="team-result-club team-result-club-right">
+                                                            <img src="@opponentLogo" alt="@match.OpponentTeamName">
+                                                            <span>@match.OpponentTeamName</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="team-result-actions">
+                                                        <a asp-controller="Matches"
+                                                           asp-action="Details"
+                                                           asp-route-id="@match.MatchId"
+                                                           class="btn theme">
+                                                            View More
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
+                                    }
                                 }
                             </div>
                         </div>

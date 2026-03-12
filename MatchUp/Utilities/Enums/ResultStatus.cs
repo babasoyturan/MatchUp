@@ -3,7 +3,7 @@
     public enum ResultStatus
     {
         Unset = 0,
-        Proposed = 1,
+        PendingApproval = 1,
         Confirmed = 2
     }
 }

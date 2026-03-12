@@ -348,6 +348,13 @@ namespace MatchUp.Data
                     .WithMany()
                     .HasForeignKey(x => x.ProposedByTeamId)
                     .OnDelete(DeleteBehavior.Restrict);
+
+                b.Property(x => x.Status)
+                    .IsRequired();
+
+                b.HasIndex(x => new { x.MatchId, x.Status })
+                    .IsUnique()
+                    .HasFilter($"[Status] = {(int)ProposalStatus.Pending}");
             });
 
             modelBuilder.Entity<Stadium>(b =>

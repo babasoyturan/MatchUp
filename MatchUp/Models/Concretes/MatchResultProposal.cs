@@ -11,11 +11,10 @@ namespace MatchUp.Models.Concretes
         public Guid ProposedByTeamId { get; set; }
         public Team? ProposedByTeam { get; set; }
 
-        public int HomeTeamScore { get; set; }
-        public int AwayTeamScore { get; set; }
+        public int ProposedHomeTeamScore { get; set; }
+        public int ProposedAwayTeamScore { get; set; }
 
         public ProposalStatus Status { get; set; } = ProposalStatus.Pending;
-
         public DateTime? RespondedAtUtc { get; set; }
     }
 }

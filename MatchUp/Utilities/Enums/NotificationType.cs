@@ -3,31 +3,36 @@
     public enum NotificationType
     {
         TeamInviteReceived = 1,
-        TeamInviteAccepted = 2,
+        TeamInviteAccepted,
 
-        OpenToGameApprovalRequired = 3,
-        OpenToGameActivated = 4,
+        OpenToGameApprovalRequired,
+        OpenToGameActivated,
 
-        GameRequestReceived = 5,
-        GameRequestAccepted = 6,
-        GameRequestDeclined = 7,
+        GameRequestReceived,
+        GameRequestAccepted,
+        GameRequestDeclined,
 
-        VenueProposed = 8,
-        VenueConfirmed = 9,
+        VenueProposed,
+        VenueConfirmed,
 
-        ResultProposed = 10,
-        ResultConfirmed = 11,
+        ResultProposed,
+        ResultConfirmed,
 
-        MatchScheduled = 12,
-        MatchCancelled = 13,
+        MatchScheduled,
+        MatchCancelled,
 
-        TeamInviteDeclined = 14,
+        TeamInviteDeclined,
 
-        OpenToGameApprovalAccepted = 15,
-        OpenToGameApprovalDeclined = 16,
+        OpenToGameApprovalAccepted,
+        OpenToGameApprovalDeclined,
 
-        MatchVenueProposalReceived = 17,
-        MatchVenueProposalApproved = 18,
-        MatchVenueProposalDeclined = 19
+        MatchVenueProposalReceived,
+        MatchVenueProposalApproved,
+        MatchVenueProposalDeclined,
+
+        MatchResultProposalReceived,
+        MatchResultProposalApproved,
+        MatchResultProposalDeclined,
+        MatchResultConfirmed
     }
 }

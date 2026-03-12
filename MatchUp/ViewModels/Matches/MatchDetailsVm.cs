@@ -28,6 +28,13 @@
         public bool CanProposeVenue { get; set; }
         public bool HasPendingVenueProposal { get; set; }
 
+        public bool CanProposeResult { get; set; }
+        public bool HasPendingResultProposal { get; set; }
+
+        public string? ConfirmedScoreText { get; set; }
+
+        public List<MatchResultProposalListItemVm> ResultProposals { get; set; } = new();
+
         public List<MatchVenueProposalListItemVm> VenueProposals { get; set; } = new();
     }
 }

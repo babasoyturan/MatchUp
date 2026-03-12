@@ -1,0 +1,150 @@
+﻿@model MatchUp.ViewModels.Matches.ProposeResultVm
+
+@{
+    ViewData["Title"] = "Propose Result";
+}
+
+<style>
+    .result-proposal-section {
+        padding-bottom: 90px;
+    }
+
+    .result-action-btn {
+        display: inline-block;
+        min-width: 240px;
+        text-align: center;
+        padding: 14px 26px;
+        font-size: 18px;
+        font-weight: 600;
+        border-radius: 4px;
+        text-decoration: none !important;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .btn.theme.result-action-btn,
+    .btn.theme.result-action-btn:visited,
+    .btn.theme.result-action-btn:active,
+    .btn.theme.result-action-btn:focus,
+    .btn.theme.result-action-btn:hover {
+        color: #ffffff !important;
+        text-decoration: none !important;
+    }
+
+        .btn.theme.result-action-btn i,
+        .btn.theme.result-action-btn:visited i,
+        .btn.theme.result-action-btn:active i,
+        .btn.theme.result-action-btn:focus i,
+        .btn.theme.result-action-btn:hover i {
+            color: #ffffff !important;
+        }
+
+    .score-input {
+        height: 46px;
+    }
+</style>
+
+<div class="section-title" style="background:url('/img/slide/1.jpg') center center / cover no-repeat;">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <h1>Propose Result</h1>
+            </div>
+
+            <div class="col-md-4">
+                <div class="breadcrumbs">
+                    <ul>
+                        <li><a asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li><a asp-controller="Matches" asp-action="Details" asp-route-id="@Model.MatchId">Match Details</a></li>
+                        <li>Propose Result</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content-info result-proposal-section">
+    <div class="container paddings-mini">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="panel-box">
+                    <div class="titles">
+                        <h4>Result Proposal Form</h4>
+                    </div>
+
+                    <div class="info-panel">
+                        <form asp-controller="Matches" asp-action="ProposeResult" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" asp-for="MatchId" />
+
+                            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                            <div class="form-group">
+                                <label><strong>Match</strong></label>
+                                <p>@Model.HomeTeamName vs @Model.AwayTeamName</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Start Time</strong></label>
+                                <p>@Model.StartAtUtc.ToString("dd MMM yyyy HH:mm")</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Current Result Status</strong></label>
+                                <p>@Model.CurrentResultStatus</p>
+                            </div>
+
+                            <div class="form-group">
+                                <label><strong>Current Venue</strong></label>
+                                <p>@Model.CurrentVenueText</p>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label asp-for="ProposedHomeTeamScore"><strong>@Model.HomeTeamName score</strong></label>
+                                        <input asp-for="ProposedHomeTeamScore" type="number" min="0" class="form-control score-input" />
+                                        <span asp-validation-for="ProposedHomeTeamScore" class="text-danger"></span>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label asp-for="ProposedAwayTeamScore"><strong>@Model.AwayTeamName score</strong></label>
+                                        <input asp-for="ProposedAwayTeamScore" type="number" min="0" class="form-control score-input" />
+                                        <span asp-validation-for="ProposedAwayTeamScore" class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-top:20px;">
+                                <button type="submit" class="btn theme result-action-btn">
+                                    Submit Result Proposal
+                                    <i class="fa fa-angle-right" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="panel-box">
+                    <div class="titles no-margin">
+                        <h4>Help</h4>
+                    </div>
+
+                    <div class="info-panel">
+                        <p>Only team owners can submit the match result.</p>
+                        <p>The opposing team owner must approve the proposed score.</p>
+                        <p>Once approved, the match result becomes final and the match is completed.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

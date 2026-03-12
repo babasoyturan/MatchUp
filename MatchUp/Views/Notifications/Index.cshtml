@@ -143,6 +143,20 @@
                                             </p>
                                         }
 
+                                        @if (!string.IsNullOrWhiteSpace(notification.MatchResultProposalStatus))
+                                        {
+                                            <p>
+                                                <strong>Result Proposal Status:</strong> @notification.MatchResultProposalStatus
+                                            </p>
+                                        }
+
+                                        @if (notification.ProposedHomeTeamScore.HasValue && notification.ProposedAwayTeamScore.HasValue)
+                                        {
+                                            <p>
+                                                <strong>Proposed Score:</strong> @notification.ProposedHomeTeamScore - @notification.ProposedAwayTeamScore
+                                            </p>
+                                        }
+
                                         <div style="margin-top:15px;">
                                             @if (notification.CanAccept && notification.TeamInviteId.HasValue)
                                             {
@@ -245,13 +259,46 @@
                                                 </a>
                                             }
 
+                                            @if (notification.CanApproveMatchResultProposal && notification.MatchResultProposalId.HasValue)
+                                            {
+                                                <form asp-controller="Notifications"
+                                                      asp-action="ApproveMatchResultProposal"
+                                                      method="post"
+                                                      style="display:inline-block; margin-right:10px;">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="resultProposalId" value="@notification.MatchResultProposalId.Value" />
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-success">
+                                                        Approve Result
+                                                    </button>
+                                                </form>
+                                            }
+
+                                            @if (notification.CanDeclineMatchResultProposal && notification.MatchResultProposalId.HasValue)
+                                            {
+                                                <form asp-controller="Notifications"
+                                                      asp-action="DeclineMatchResultProposal"
+                                                      method="post"
+                                                      style="display:inline-block; margin-right:10px;">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="resultProposalId" value="@notification.MatchResultProposalId.Value" />
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-danger">
+                                                        Decline Result
+                                                    </button>
+                                                </form>
+                                            }
+
+
                                             @if (!notification.IsRead &&
-                                                                                !notification.CanAccept &&
-                                                                                !notification.CanDecline &&
-                                                                                !notification.CanApproveOpenToGame &&
-                                                                                !notification.CanDeclineOpenToGame &&
-                                                                                !notification.CanAcceptGameRequest &&
-                                                                                !notification.CanDeclineGameRequest)
+                                                !notification.CanAccept &&
+                                                !notification.CanDecline &&
+                                                !notification.CanApproveOpenToGame &&
+                                                !notification.CanDeclineOpenToGame &&
+                                                !notification.CanAcceptGameRequest &&
+                                                !notification.CanDeclineGameRequest && 
+                                                !notification.CanApproveMatchResultProposal && 
+                                                !notification.CanDeclineMatchResultProposal)
                                             {
                                                 <form asp-controller="Notifications"
                                                       asp-action="MarkAsRead"
